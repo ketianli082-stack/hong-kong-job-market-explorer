@@ -8,14 +8,14 @@
 
 ## 分工
 
-- **叶同学负责 Page 01**，按照 [Page 01 修改方案](docs/MODIFICATION_PLAN_ZH.md)修改。
-- **彭同学负责 Page 02**，具体设计和修改方式自行发挥。
+- **叶同学先执行完整修改方案**：负责 Page 01，并一起修复方案中指定的 Page 02 行业下拉框问题。
+- **彭同学随后负责 Page 02**：在叶同学的修改合并后继续工作，其余设计和修改方式自行发挥。
 
 ## 对应分支
 
 - 叶同学：`page1-ye`
 - 彭同学：`page2-peng`
-- 完成后分别提交 Pull Request 合并到 `main`。
+- 叶同学先提交并合并修改；彭同学从更新后的 `main` 开始 Page 02 工作。
 
 ## 本地运行
 
@@ -33,7 +33,7 @@ python3 -m http.server 8000
 - `fit.html` / `fit.js`：Page 02
 - `styles.css`：网站样式
 - `data/data.json`：网站使用的数据
-- `docs/MODIFICATION_PLAN_ZH.md`：叶同学执行的 Page 01 修改方案
+- `docs/MODIFICATION_PLAN_ZH.md`：叶同学优先执行的完整修改方案
 - `downloads/hong-kong-job-market-explorer-source.zip`：源码压缩包
 
 原始 `.twbx` 文件不上传到本仓库；网站使用的提取数据保存在 `data/data.json` 中。

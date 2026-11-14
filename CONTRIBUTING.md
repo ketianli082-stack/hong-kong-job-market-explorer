@@ -1,17 +1,17 @@
-# 页面分工
+# 修改顺序与页面分工
 
-## Page 01
+## 第一步：叶同学先执行修改方案
 
-- 负责人：叶同学
 - 分支：`page1-ye`
-- 按照 `docs/MODIFICATION_PLAN_ZH.md` 修改
-- 主要文件：`index.html`、`app.js` 和 Page 01 相关样式
+- 按照 `docs/MODIFICATION_PLAN_ZH.md` 完成全部指定修改
+- 负责 Page 01
+- 同时修复方案中指定的 Page 02 行业下拉框问题
+- 完成后先向 `main` 提交并合并 Pull Request
 
-## Page 02
+## 第二步：彭同学继续 Page 02
 
-- 负责人：彭同学
 - 分支：`page2-peng`
-- 具体修改内容和设计方式自行决定
-- 主要文件：`fit.html`、`fit.js` 和 Page 02 相关样式
-
-完成后分别向 `main` 提交 Pull Request。
+- 开始前先同步叶同学已经合并到 `main` 的修改
+- 负责 Page 02
+- 除已修复的下拉框外，具体修改内容和设计方式自行决定
+- 完成后向 `main` 提交 Pull Request
