@@ -6,7 +6,7 @@
   <meta name="description" content="Interactive exploration of Hong Kong employment, pay and labour-market risk.">
   <title>Hong Kong Job Market Explorer</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..800&amp;family=Manrope:wght@600..800&amp;display=swap">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=22">
 </head>
 <body class="explore-page">
   <header class="topbar">
@@ -27,7 +27,7 @@
         <div class="dashboard-grid two-columns">
           <figure class="viz-card primary-viz"><div class="viz-heading"><div><h3>Employment by age</h3><p>Share of employed population (%)</p></div><span>2010</span></div><div id="age-chart" class="chart h-280" role="img" aria-label="Employment share by age in Mainland China and Hong Kong in 2010"></div></figure>
           <figure class="viz-card"><div class="viz-heading"><div><h3>Middle-age workforce share</h3><p>Share of employed population (%)</p></div><span>2010–2022</span></div><div id="middle-age-chart" class="chart h-280" role="img" aria-label="Middle-age workforce share in Mainland China and Hong Kong"></div></figure>
-          <figure class="viz-card full"><div class="viz-heading"><div><h3>Workers under 35 by industry</h3><p>Share of industry employment (%)</p></div><span>Mainland 2020 · Hong Kong 2021</span></div><div id="under35-chart" class="chart h-260" role="img" aria-label="Workers under 35 by industry"></div></figure>
+          <figure class="viz-card full"><div class="viz-heading"><div><h3>Workers under 35 by industry</h3><p>Share of industry employment (%)</p></div><div class="market-period-buttons" role="group" aria-label="Period"><button type="button" data-market-period="early" aria-pressed="false">Early · Mainland 2010 / HK 2011</button><button type="button" data-market-period="latest" aria-pressed="true">Latest · Mainland 2020 / HK 2021</button></div></div><div id="under35-chart" class="chart h-260" role="img" aria-label="Workers under 35 by industry"></div></figure>
         </div>
       </section>
       <section class="chapter-panel" id="chapter-structure" data-panel="structure" role="tabpanel" aria-labelledby="tab-structure" hidden>
@@ -47,24 +47,30 @@
       <section class="chapter-panel" id="chapter-risk" data-panel="risk" role="tabpanel" aria-labelledby="tab-risk" hidden>
         <header class="chapter-heading"><span>02 · RISK &amp; RESILIENCE</span><h2>How Secure Is Employment?</h2><p>Long-term unemployment, crisis recovery and group-level exposure show where employment is most vulnerable.</p></header>
         <div class="dashboard-grid risk-grid">
-          <figure class="viz-card primary-viz full"><div class="viz-heading"><div><h3>Annual unemployment rate</h3><p>Unemployment rate (%)</p></div><span>1985–2025</span></div><div id="unemployment-chart" class="chart h-250"></div></figure>
-          <figure class="viz-card"><div class="viz-heading"><div><h3>Recovery after crises</h3><p>Change from pre-crisis rate (percentage points)</p></div><label>Crisis<select id="crisis-select"><option value="all">All crises</option></select></label></div><div id="crisis-chart" class="chart h-280"></div></figure>
-          <figure class="viz-card"><div class="viz-heading"><div><h3>Unemployment exposure</h3><p>Unemployment rate (%)</p></div><label>Group<select id="risk-group"><option value="age">Age</option><option value="education">Education</option></select></label></div><div id="risk-group-chart" class="chart h-280"></div></figure>
+          <figure class="viz-card primary-viz annual-unemployment-card"><div class="viz-heading"><div><h3>Annual unemployment rate</h3><p>Unemployment rate (%)</p></div><label>Year<select id="risk-year"></select></label></div><div id="unemployment-chart" class="chart h-250"></div></figure>
+          <figure class="viz-card"><div class="viz-heading"><div><h3>Unemployment by education</h3><p>Click a year to compare age groups</p></div></div><ul id="education-legend" class="education-legend" aria-label="Education groups"></ul><div id="education-chart" class="chart education-chart-compact"></div></figure>
+          <figure class="viz-card"><div class="viz-heading"><div><h3>Unemployment by age</h3><p>Click an age group to explore its history</p></div><span id="risk-age-year"></span></div><div id="risk-group-chart" class="chart h-300"></div></figure>
+          <figure class="viz-card"><div class="viz-heading"><div><h3>Unemployment by age and year</h3><p>Click a cell to select age and year</p></div><label>Age<select id="risk-age"></select></label></div><div id="risk-age-trend" class="chart h-300"></div></figure>
         </div>
       </section>
       <section class="chapter-panel" id="chapter-equity" data-panel="equity" role="tabpanel" aria-labelledby="tab-equity" hidden>
         <header class="chapter-heading"><span>03 · GENDER &amp; PAY</span><h2>Who Benefits from the Market</h2><p>Participation, representation and pay reveal different dimensions of inequality.</p></header>
         <div class="dashboard-grid two-columns">
-          <figure class="viz-card"><div class="viz-heading"><div><h3>Participation by age and sex</h3><p>Labour-force participation rate (%)</p></div><label>Year<select id="participation-year"><option>1985</option><option>2005</option><option selected>2025</option></select></label></div><div id="participation-chart" class="chart h-280"></div></figure>
-          <figure class="viz-card"><div class="viz-heading"><div><h3>Employment by industry and sex</h3><p>Share within each industry (%)</p></div><span>2025</span></div><div id="gender-employment-chart" class="chart h-280"></div></figure>
-          <figure class="viz-card primary-viz"><div class="viz-heading"><div><h3>Median monthly pay by industry</h3><p>HKD per month</p></div><label>Sort<select id="pay-sort"><option value="gap">Pay gap</option><option value="male">Male pay</option><option value="female">Female pay</option></select></label></div><div id="pay-gap-chart" class="chart h-300"></div></figure>
-          <figure class="viz-card"><div class="viz-heading"><div><h3>Median pay over time</h3><p>HKD per month</p></div><span>1985–2025</span></div><div id="pay-trend-chart" class="chart h-300"></div></figure>
+          <figure class="viz-card"><div class="viz-heading"><div><h3>Median pay over time</h3><p>HKD per month</p></div><span>1985–2025</span></div><div id="pay-trend-chart" class="chart h-300 pay-trend-chart"></div></figure>
+          <figure class="viz-card primary-viz"><div class="viz-heading"><div><h3>Median monthly pay by industry</h3><p>HKD per month</p></div><span id="industry-pay-year-label"></span></div><div id="pay-gap-chart" class="chart h-300"></div></figure>
+          <figure class="viz-card">
+            <div class="viz-heading participation-heading"><div><h3>Participation by age and sex</h3><p>Labour-force participation rate (%)</p></div>
+            <div class="participation-controls"><label>View <select id="participation-mode"><option value="linked">Selected year</option><option value="compare">Three-year comparison</option></select></label></div></div>
+            <div class="participation-toolbar"><ul id="participation-legend" class="participation-legend" aria-label="Years"></ul><div class="participation-playback"><button type="button" id="participation-play">Play</button><span class="participation-play-range">2008–2025</span><span id="participation-selected-year" aria-live="polite"></span></div></div>
+            <div id="participation-chart" class="chart" role="img" aria-label="Labour-force participation rates for men and women by age group in 1985, 2005 and 2025"></div>
+          </figure>
+          <figure class="viz-card"><div class="viz-heading"><div><h3>Employment by industry and sex</h3><p>Share within each industry (%)</p></div><label>Year<select id="gender-employment-year" aria-controls="gender-employment-chart pay-gap-chart"></select></label></div><div id="gender-employment-chart" class="chart h-280"></div></figure>
         </div>
         <div class="decision-strip compact-decision"><p>Turn market evidence into a personal shortlist.</p><a href="fit.html">Find Your Fit →</a></div>
       </section>
     </section>
   </main>
   <div id="tooltip" class="tooltip" role="status" aria-live="polite"></div>
-  <script src="app.js" defer></script>
+  <script src="app.js?v=49" defer></script>
 </body>
 </html>
