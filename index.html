@@ -6,17 +6,17 @@
   <meta name="description" content="Interactive exploration of Hong Kong employment, pay and labour-market risk.">
   <title>Hong Kong Job Market Explorer</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..800&amp;family=Manrope:wght@600..800&amp;display=swap">
-  <link rel="stylesheet" href="styles.css?v=22">
+  <link rel="stylesheet" href="styles.css?v=30">
 </head>
-<body class="explore-page">
+<body class="explore-page nav-collapsed">
   <header class="topbar">
     <a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true"></span><span>Hong Kong Job Market Explorer</span></a>
     <nav aria-label="Primary navigation"><a class="active" href="index.html">Explore</a><a href="fit.html">Find Your Fit</a></nav>
   </header>
   <main>
-    <section class="page-intro compact-intro"><h1>Hong Kong Job Market Explorer</h1></section>
     <section class="story-workspace" aria-label="Hong Kong job market story">
-      <div class="chapter-tabs" role="tablist" aria-label="Story chapters">
+      <button id="chapter-nav-toggle" class="chapter-nav-toggle" type="button" aria-expanded="false" aria-controls="chapter-navigation" aria-label="Expand chapter navigation">›</button>
+      <div id="chapter-navigation" class="chapter-tabs" role="tablist" aria-label="Story chapters">
         <button class="active" role="tab" aria-selected="true" id="tab-markets" aria-controls="chapter-markets" data-chapter="markets"><span>00</span><strong>Two Markets</strong></button>
         <button role="tab" aria-selected="false" id="tab-structure" aria-controls="chapter-structure" data-chapter="structure"><span>01</span><strong>Employment Structure</strong></button>
         <button role="tab" aria-selected="false" id="tab-risk" aria-controls="chapter-risk" data-chapter="risk"><span>02</span><strong>Risk &amp; Resilience</strong></button>
@@ -34,7 +34,7 @@
         <header class="chapter-heading"><span>01 · EMPLOYMENT STRUCTURE</span><h2>Where Hong Kong Works</h2><p>Employment scale, industry composition and the occupations behind the market.</p></header>
         <div class="dashboard-grid employment-overview">
           <figure class="viz-card"><div class="viz-heading"><div><h3>Total employment</h3><p>Employed persons ('000)</p></div><span>2008–2025</span></div><div id="total-employment-chart" class="chart h-270"></div></figure>
-          <figure class="viz-card primary-viz"><div class="viz-heading"><div><h3>Employment share by industry</h3><p>Click an area to isolate an industry</p></div><button id="industry-share-reset" class="chart-action" type="button" hidden>All industries</button></div><div id="industry-share-chart" class="chart h-270"></div></figure>
+          <figure class="viz-card primary-viz"><div class="viz-heading"><div><h3>Employment share by industry</h3><p>Click an area to isolate an industry</p></div><div class="industry-share-controls"><div id="industry-share-legend" class="industry-share-legend" role="group" aria-label="Industries"></div><button id="industry-share-reset" class="chart-action" type="button" hidden>All industries</button></div></div><div id="industry-share-chart" class="chart h-270"></div></figure>
         </div>
         <section class="composition-section" aria-labelledby="composition-title">
           <div class="subsection-heading"><div><h3 id="composition-title">Employment status and occupation mix</h3><p>Employed persons ('000)</p></div><label>Year<select id="composition-year"></select></label></div>
@@ -71,6 +71,6 @@
     </section>
   </main>
   <div id="tooltip" class="tooltip" role="status" aria-live="polite"></div>
-  <script src="app.js?v=49" defer></script>
+  <script src="app.js?v=53" defer></script>
 </body>
 </html>

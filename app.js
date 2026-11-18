@@ -39,11 +39,15 @@ function s(tag, attrs = {}, text = null) {
   return node;
 }
 
+function desktopDashboard() {
+  return matchMedia("(min-width: 900px) and (min-height: 600px)").matches;
+}
+
 function makeSvg(selector) {
   const container = $(selector);
   container.replaceChildren();
   const width = container.clientWidth || 700;
-  const height = Math.max(240, container.clientHeight || 340);
+  const height = desktopDashboard() ? container.clientHeight : Math.max(240, container.clientHeight || 340);
   const svg = s("svg", { viewBox: `0 0 ${width} ${height}`, "aria-hidden": "true" });
   container.appendChild(svg);
   requestAnimationFrame(fitChartLabels);
@@ -199,11 +203,22 @@ function renderTotalEmployment() {
 }
 
 function drawIndustryShare() {
-  const selected=selectedIndustryShare; const {svg,width,height}=makeSvg("#industry-share-chart"); const columns = width < 480 ? 2 : 4; const m={top:columns === 2 ? 84 : 50,right:20,bottom:54,left:58};
+  const selected=selectedIndustryShare; const {svg,width,height}=makeSvg("#industry-share-chart"); const m={top:12,right:20,bottom:54,left:58};
   const industries=[...new Set(data.industryShares.map(d=>d.industry))], years=[...new Set(data.industryShares.map(d=>d.year))].sort((a,b)=>a-b); const x=linear([years[0],years.at(-1)],[m.left,width-m.right]);
   const short={"Manufacturing":"Manufacturing","Import/export trade and wholesale":"Trade & wholesale","Retail, accommodation and food services":"Retail & lodging","Transportation, storage, postal and courier services, information and communications":"Transport & ICT","Financing, insurance, real estate, professional and business services":"Finance & business","Public administration, social and personal services":"Public & social","Construction":"Construction","Other industries":"Other"};
-  const legendWidth=(width - 16) / columns;
-  industries.forEach((industry,i)=>{const lx=8+(i%columns)*legendWidth,ly=12+Math.floor(i/columns)*18;const item=s("g",{class:"chart-legend-item",tabindex:"0"});item.append(s("rect",{x:lx,y:ly,width:9,height:9,rx:2,fill:industryShareColors[industry]}),s("text",{x:lx+14,y:ly+9,class:"tick-label"},short[industry]));const select=()=>{selectedIndustryShare=industry;renderIndustryShare();}; item.addEventListener("click",select); item.addEventListener("keydown",event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault(); select();}});svg.appendChild(item);});
+  $("#industry-share-legend").replaceChildren(...industries.map(industry => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = short[industry];
+    button.title = industry;
+    button.style.setProperty("--industry-color", industryShareColors[industry]);
+    button.setAttribute("aria-pressed", String(selected === industry));
+    button.addEventListener("click", () => {
+      selectedIndustryShare = selectedIndustryShare === industry ? null : industry;
+      renderIndustryShare();
+    });
+    return button;
+  }));
   $("#industry-share-reset").hidden=!selected;
   if(selected){
     const rows=data.industryShares.filter(d=>d.industry===selected); const max=Math.ceil(Math.max(...rows.map(d=>d.share))/5)*5; const y=linear([0,max],[height-m.bottom,m.top]); yGrid(svg,y,[0,max/2,max],m.left,width-m.right,v=>`${fmt(v,0)}%`,"Employment share (%)"); xAxis(svg,x,[2008,2012,2016,2020,2025],height-m.bottom,String,"Year");
@@ -241,7 +256,7 @@ function renderIndustryShare() {
   const width = svg.viewBox.baseVal.width, height = svg.viewBox.baseVal.height;
   const year = compositionYear();
   const x = linear([2008, 2025], [58, width - 20])(year);
-  const top = width < 480 ? 84 : 50, bottom = height - 54;
+  const top = 12, bottom = height - 54;
   const rows = data.industryShares.filter(row => row.year === year &&
     (!selectedIndustryShare || row.industry === selectedIndustryShare));
   svg.appendChild(s("line", { x1: x, x2: x, y1: top, y2: bottom,
@@ -270,7 +285,7 @@ function renderStatus(){
   if (!rows.length) { showCompositionUnavailable(svg, width, height); return; }
   rows.forEach((d,i)=>{const next=angle+d.employedThousand/total*Math.PI*2,color=palette[i];const arc=s("path",{d:donutArc(cx,cy,r0,r,angle,next),fill:color,stroke:"#fff","stroke-width":2});tip(arc,`<strong>${d.status}</strong>${fmt(d.employedThousand,1)} thousand<br>${fmt(d.employedThousand/total*100,1)}%`);svg.appendChild(arc);angle=next;});
   svg.append(s("text",{x:cx,y:cy-2,"text-anchor":"middle",class:"donut-value"},String(compositionYear())),s("text",{x:cx,y:cy+18,"text-anchor":"middle",class:"tick-label donut-caption"},"employment status"));
-  rows.forEach((d,i)=>{const y=44+i*43,x=Math.round(width*.45);svg.append(s("rect",{x,y:y-9,width:10,height:10,rx:2,fill:palette[i]}),s("text",{x:x+17,y,class:"bar-label"},d.status),s("text",{x:x+17,y:y+17,class:"tick-label"},`${fmt(d.employedThousand,1)}k · ${fmt(d.employedThousand/total*100,1)}%`));});
+  rows.forEach((d,i)=>{const y=26+i*Math.min(43,(height-49)/Math.max(1,rows.length-1)),x=Math.round(width*.45);svg.append(s("rect",{x,y:y-9,width:10,height:10,rx:2,fill:palette[i]}),s("text",{x:x+17,y,class:"bar-label"},d.status),s("text",{x:x+17,y:y+17,class:"tick-label"},`${fmt(d.employedThousand,1)}k · ${fmt(d.employedThousand/total*100,1)}%`));});
 }
 function occupationTiles(rows, x, y, width, height, total) {
   if (rows.length === 1) return [{ occupation: rows[0], x, y, width, height }];
@@ -377,12 +392,12 @@ function renderParticipation() {
   const peer = $("#gender-employment-chart");
   const chartTop = $("#participation-chart").getBoundingClientRect().top;
   const peerAxis = peer.getBoundingClientRect().top + peer.clientHeight - 44;
-  const panelHeight = stacked ? 200 : Math.max(170, Math.round(peerAxis - chartTop + 43));
+  const panelHeight = desktopDashboard() ? $("#participation-chart").clientHeight : stacked ? 200 : Math.max(170, Math.round(peerAxis - chartTop + 43));
   const left = 41, right = 9, gap = 20;
   const panelWidth = (width - left - right - (stacked ? 0 : gap)) / (stacked ? 1 : 2);
   const height = stacked ? panelHeight * 2 + 12 : panelHeight;
   svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
-  svg.style.height = `${height}px`;
+  svg.style.height = desktopDashboard() ? "100%" : `${height}px`;
   const ticks = [0, 20, 40, 60, 80, 100];
 
   if (!stacked) svg.appendChild(s("line", {
@@ -854,6 +869,15 @@ function fitChartLabels() {
 }
 
 const renderers={markets:()=>{renderAge();renderMiddleAge();renderUnder35();},structure:()=>{renderTotalEmployment();renderIndustryShare();renderStatus();renderOccupation();},risk:()=>{renderEducationRisk();renderUnemployment();renderRiskGroup();renderRiskAgeTrend();},equity:()=>{renderParticipation();renderGenderEmployment();renderPayTrend();renderPayGap();}};
+function setChapterNavigation(open) {
+  document.body.classList.toggle("nav-collapsed", !open);
+  const toggle = $("#chapter-nav-toggle");
+  toggle.setAttribute("aria-expanded", String(open));
+  toggle.setAttribute("aria-label", open ? "Collapse chapter navigation" : "Expand chapter navigation");
+  toggle.textContent = open ? "‹" : "›";
+  requestAnimationFrame(() => renderers[activeChapter]());
+}
+
 function switchChapter(name,scroll=false){activeChapter=name;$$('[data-chapter]').forEach(b=>{const on=b.dataset.chapter===name;b.classList.toggle("active",on);b.setAttribute("aria-selected",String(on));});$$('[data-panel]').forEach(p=>{const on=p.dataset.panel===name;p.hidden=!on;p.classList.toggle("active",on);});history.replaceState(null,"",`#${name}`);requestAnimationFrame(()=>renderers[name]());if(scroll)$(".chapter-tabs").scrollIntoView({block:"start"});}
 function populateSelects(){const years=[...new Set(data.totalEmployment.map(d=>d.year))].sort((a,b)=>b-a),year=$("#composition-year");years.forEach(v=>{const option=new Option(v,v);option.disabled=!data.employmentStatus.some(row=>row.year===v)||!data.occupationMix.some(row=>row.year===v);year.add(option);});year.value=years[0];}
 function setupIndustryYear() {
@@ -908,12 +932,12 @@ function setupRiskControls() {
   $("#risk-age").value="15 - 19";
 }
 
-function setup(){setupRiskControls();$$("[data-market-period]").forEach(button => button.addEventListener("click", () => {
+function setup(){$("#chapter-nav-toggle").addEventListener("click",()=>setChapterNavigation(document.body.classList.contains("nav-collapsed")));setupRiskControls();$$("[data-market-period]").forEach(button => button.addEventListener("click", () => {
   selectedMarketPeriod = button.dataset.marketPeriod;
   $$("[data-market-period]").forEach(item => item.setAttribute("aria-pressed", String(item === button)));
   hideTip();
   renderUnder35();
-}));populateSelects();setupIndustryYear();setupParticipationControls();$$('[data-chapter]').forEach(b=>b.addEventListener("click",()=>switchChapter(b.dataset.chapter)));$("#industry-share-reset").addEventListener("click",()=>{selectedIndustryShare=null;renderIndustryShare();});$("#composition-year").addEventListener("change",()=>renderers.structure());$("#risk-year").addEventListener("change",()=>setRiskYear(riskYear()));$("#risk-age").addEventListener("change",()=>{renderRiskGroup();renderRiskAgeTrend();});const hash=location.hash.replace("#","");if(Object.hasOwn(renderers,hash))activeChapter=hash;switchChapter(activeChapter);let timer;addEventListener("resize",()=>{clearTimeout(timer);timer=setTimeout(()=>renderers[activeChapter](),160);});}
+}));populateSelects();setupIndustryYear();setupParticipationControls();$$('[data-chapter]').forEach(b=>b.addEventListener("click",()=>{switchChapter(b.dataset.chapter);if(desktopDashboard())setChapterNavigation(false);}));$("#industry-share-reset").addEventListener("click",()=>{selectedIndustryShare=null;renderIndustryShare();});$("#composition-year").addEventListener("change",()=>renderers.structure());$("#risk-year").addEventListener("change",()=>setRiskYear(riskYear()));$("#risk-age").addEventListener("change",()=>{renderRiskGroup();renderRiskAgeTrend();});const hash=location.hash.replace("#","");if(Object.hasOwn(renderers,hash))activeChapter=hash;switchChapter(activeChapter);let timer;addEventListener("resize",()=>{clearTimeout(timer);timer=setTimeout(()=>renderers[activeChapter](),160);});}
 
 const industryEmploymentRequest = fetch("data/industry-employment-by-sex.json")
   .then(response => response.json())
