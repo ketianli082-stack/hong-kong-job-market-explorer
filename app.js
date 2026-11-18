@@ -1,19 +1,29 @@
 const NS = "http://www.w3.org/2000/svg";
 const tooltip = document.getElementById("tooltip");
-const palette = ["#5B4BDB", "#3E79B7", "#D7647D", "#D9824B", "#2D8C84", "#4F9DA6", "#8A67C7", "#C58A3B", "#65758B", "#4E8B63"];
-const femaleColor = "#D7647D", maleColor = "#5B4BDB";
+const palette = ["#7F74A7", "#9B93C9", "#BE6482", "#C799BC", "#9C9290", "#C6C1F0", "#9A6E96", "#DDB5D5", "#6F6F6F", "#B898BC"];
+const femaleColor = "#BE6482", maleColor = "#7F74A7";
+const mainlandColor = "#9A6E96", hongKongColor = "#9B93C9";
 const industryShareColors = {
-  "Manufacturing": "#5B4BDB",
-  "Import/export trade and wholesale": "#3E79B7",
-  "Retail, accommodation and food services": "#D7647D",
-  "Transportation, storage, postal and courier services, information and communications": "#2D8C84",
-  "Financing, insurance, real estate, professional and business services": "#8A67C7",
-  "Public administration, social and personal services": "#4E8B63",
-  "Construction": "#C58A3B",
-  "Other industries": "#65758B"
+  "Manufacturing": "#7F74A7",
+  "Import/export trade and wholesale": "#9B93C9",
+  "Retail, accommodation and food services": "#BE6482",
+  "Transportation, storage, postal and courier services, information and communications": "#9C9290",
+  "Financing, insurance, real estate, professional and business services": "#9A6E96",
+  "Public administration, social and personal services": "#B898BC",
+  "Construction": "#DDB5D5",
+  "Other industries": "#6F6F6F"
 };
 let data;
+let industryEmploymentBySex;
+let industryPayBySex;
+let participationHistory;
+let riskAgeHistory;
+let riskEducationHistory;
+let selectedRiskEducation = null;
+let participationTimer;
 let activeChapter = "markets";
+let highlightedMarketRegion = "all";
+let selectedMarketPeriod = "latest";
 let selectedIndustryShare = null;
 
 const $ = (selector, root = document) => root.querySelector(selector);
@@ -29,13 +39,18 @@ function s(tag, attrs = {}, text = null) {
   return node;
 }
 
+function desktopDashboard() {
+  return matchMedia("(min-width: 900px) and (min-height: 600px)").matches;
+}
+
 function makeSvg(selector) {
   const container = $(selector);
   container.replaceChildren();
-  const width = Math.max(300, container.clientWidth || 700);
-  const height = Math.max(240, container.clientHeight || 340);
+  const width = container.clientWidth || 700;
+  const height = desktopDashboard() ? container.clientHeight : Math.max(240, container.clientHeight || 340);
   const svg = s("svg", { viewBox: `0 0 ${width} ${height}`, "aria-hidden": "true" });
   container.appendChild(svg);
+  requestAnimationFrame(fitChartLabels);
   return { container, svg, width, height };
 }
 
@@ -47,12 +62,41 @@ function donutArc(cx,cy,r0,r1,a0,a1){const p=a=>[cx+Math.cos(a)*r1,cy+Math.sin(a
 function showTip(event, html) { tooltip.innerHTML = html; tooltip.classList.add("visible"); moveTip(event); }
 function moveTip(event) { tooltip.style.left = `${clamp(event.clientX + 12, 8, innerWidth - tooltip.offsetWidth - 8)}px`; tooltip.style.top = `${clamp(event.clientY + 12, 8, innerHeight - tooltip.offsetHeight - 8)}px`; }
 function hideTip() { tooltip.classList.remove("visible"); }
-function tip(node, html) { node.addEventListener("pointerenter", e => showTip(e, typeof html === "function" ? html() : html)); node.addEventListener("pointermove", moveTip); node.addEventListener("pointerleave", hideTip); }
+function tip(node, html) { node.classList.add("chart-mark"); node.addEventListener("pointerenter", e => showTip(e, typeof html === "function" ? html() : html)); node.addEventListener("pointermove", moveTip); node.addEventListener("pointerleave", hideTip); }
+function marketRegionMark(node, region) {
+  node.dataset.marketRegion = region;
+  node.style.cursor = "pointer";
+  node.setAttribute("tabindex", "0");
+  node.setAttribute("role", "button");
+  node.setAttribute("aria-label", `Highlight ${region}`);
+  const select = () => {
+    highlightedMarketRegion = highlightedMarketRegion === region ? "all" : region;
+    updateMarketHighlight();
+  };
+  node.addEventListener("click", select);
+  node.addEventListener("keydown", event => {
+    if (event.key === "Enter" || event.key === " ") { event.preventDefault(); select(); }
+  });
+  node.style.opacity = highlightedMarketRegion === "all" || highlightedMarketRegion === region ? "1" : ".18";
+}
+function updateMarketHighlight() {
+  $$("[data-market-region]").forEach(node => {
+    const on = highlightedMarketRegion === "all" || node.dataset.marketRegion === highlightedMarketRegion;
+    node.style.opacity = on ? "1" : ".18";
+  });
+}
+
 
 function xAxis(svg, scale, ticks, y, format = String, title = "") {
   svg.appendChild(s("line", { x1: scale(ticks[0]), x2: scale(ticks.at(-1)), y1: y, y2: y, class: "axis-line" }));
   ticks.forEach(t => { svg.appendChild(s("line", { x1: scale(t), x2: scale(t), y1: y, y2: y + 5, class: "axis-line" })); svg.appendChild(s("text", { x: scale(t), y: y + 19, "text-anchor": "middle", class: "tick-label" }, format(t))); });
-  if (title) svg.appendChild(s("text", { x: (scale(ticks[0]) + scale(ticks.at(-1))) / 2, y: y + 38, "text-anchor": "middle", class: "axis-label" }, title));
+  if (title) {
+    const center = (scale(ticks[0]) + scale(ticks.at(-1))) / 2;
+    const label = s("text", { x: center, y: y + 38, "text-anchor": "middle", class: "axis-label" }, title);
+    svg.appendChild(label);
+    const halfLength = label.getComputedTextLength() / 2;
+    label.setAttribute("x", clamp(center, halfLength + 4, svg.viewBox.baseVal.width - halfLength - 4));
+  }
 }
 function yGrid(svg, scale, ticks, x1, x2, format = String, title = "") {
   ticks.forEach(t => { svg.appendChild(s("line", { x1, x2, y1: scale(t), y2: scale(t), class: "grid-line" })); svg.appendChild(s("text", { x: x1 - 8, y: scale(t) + 4, "text-anchor": "end", class: "tick-label" }, format(t))); });
@@ -67,14 +111,15 @@ function renderAge() {
   const size = linear([0, max], [0, width / 2 - 88]);
   const rowH = (height - m.top - m.bottom) / ages.length;
   svg.appendChild(s("line", { x1: center, x2: center, y1: m.top - 8, y2: height - m.bottom, class: "axis-line" }));
-  svg.appendChild(s("text", { x: center - 57, y: 16, "text-anchor": "end", class: "direct-label" }, "Mainland China"));
-  svg.appendChild(s("text", { x: center + 57, y: 16, class: "direct-label" }, "Hong Kong"));
+  svg.appendChild(s("text", { x: center / 2, y: 16, "text-anchor": "middle", class: "direct-label" }, "Mainland China"));
+  svg.appendChild(s("text", { x: center * 1.5, y: 16, "text-anchor": "middle", class: "direct-label" }, "Hong Kong"));
   ages.forEach((age, i) => {
     const left = data.ageComparison.find(d => d.age === age && d.region === "内地");
     const right = data.ageComparison.find(d => d.age === age && d.region === "香港");
     const y = m.top + i * rowH, h = Math.max(12, rowH * .56);
-    const l = s("rect", { x: center - 54 - size(left.share), y, width: size(left.share), height: h, rx: 3, fill: "#5B4BDB" });
-    const r = s("rect", { x: center + 54, y, width: size(right.share), height: h, rx: 3, fill: "#D7647D" });
+    const l = s("rect", { x: center - 54 - size(left.share), y, width: size(left.share), height: h, rx: 3, fill: mainlandColor });
+    const r = s("rect", { x: center + 54, y, width: size(right.share), height: h, rx: 3, fill: hongKongColor });
+    marketRegionMark(l, "Mainland China"); marketRegionMark(r, "Hong Kong");
     tip(l, `<strong>Mainland China · ${age}</strong>${fmt(left.share, 1)}%`); tip(r, `<strong>Hong Kong · ${age}</strong>${fmt(right.share, 1)}%`);
     svg.append(l, r, s("text", { x: center, y: y + h / 2 + 4, "text-anchor": "middle", class: "tick-label" }, age));
   });
@@ -82,24 +127,46 @@ function renderAge() {
 }
 
 function renderMiddleAge() {
-  const { svg, width, height } = makeSvg("#middle-age-chart"); const m = { top: 22, right: 56, bottom: 54, left: 48 };
-  const rows = data.middleAgeTrend, years = [...new Set(rows.map(d => d.year))];
-  const x = linear([years[0], years.at(-1)], [m.left, width - m.right]); const y = linear([55, 85], [height - m.bottom, m.top]);
-  yGrid(svg, y, [60,70,80], m.left, width - m.right, v => `${v}%`, "Share (%)"); xAxis(svg, x, [2010,2014,2018,2022], height - m.bottom, String, "Year");
-  [["内地","Mainland China","#5B4BDB"],["香港","Hong Kong","#D7647D"]].forEach(([key,label,color]) => {
-    const series = rows.filter(d => d.region === key); svg.appendChild(s("path", { d: linePath(series.map(d => [x(d.year),y(d.share)])), fill: "none", stroke: color, "stroke-width": 3 }));
-    series.forEach(d => { const dot=s("circle",{cx:x(d.year),cy:y(d.share),r:3.5,fill:color}); tip(dot,`<strong>${label} · ${d.year}</strong>${fmt(d.share,1)}%`); svg.appendChild(dot); });
-    const last=series.at(-1); svg.appendChild(s("text",{x:x(last.year)+8,y:y(last.share)+4,fill:color,class:"direct-label"},label));
+  const { svg, width, height } = makeSvg("#middle-age-chart");
+  const compactLegend = width < 440;
+  const m = { top: compactLegend ? 44 : 26, right: 16, bottom: 54, left: 48 };
+  const rows = data.middleAgeTrend;
+  const x = linear([2010, 2022], [m.left, width - m.right - (compactLegend ? 0 : 100)]);
+  const y = linear([55, 85], [height - m.bottom, m.top]);
+  yGrid(svg, y, [60, 70, 80], m.left, width - m.right, v => `${v}%`, "Share (%)");
+  xAxis(svg, x, [2010, 2014, 2018, 2022], height - m.bottom, String, "Year");
+  [["内地", "Mainland China", mainlandColor], ["香港", "Hong Kong", hongKongColor]].forEach(([key, label, color], index) => {
+    const series = rows.filter(d => d.region === key);
+    const line = s("path", { d: linePath(series.map(d => [x(d.year), y(d.share)])), fill: "none", stroke: color, "stroke-width": 3 });
+    marketRegionMark(line, label);
+    svg.appendChild(line);
+    series.forEach(d => {
+      const dot = s("circle", { cx: x(d.year), cy: y(d.share), r: 4, fill: color });
+      marketRegionMark(dot, label);
+      tip(dot, `<strong>${label} · ${d.year}</strong>${fmt(d.share, 1)}%`);
+      svg.appendChild(dot);
+    });
+    const last = series.at(-1);
+    const legendX = m.left + index * 108;
+    if (compactLegend) svg.appendChild(s("rect", { x: legendX, y: 10, width: 9, height: 9, rx: 2, fill: color }));
+    svg.appendChild(s("text", {
+      x: compactLegend ? legendX + 13 : width - m.right,
+      y: compactLegend ? 19 : y(last.share) + 4,
+      "text-anchor": compactLegend ? "start" : "end",
+      fill: color,
+      class: "direct-label"
+    }, label));
   });
 }
 
 function renderUnder35() {
   const { svg, width, height } = makeSvg("#under35-chart"); const m={top:12,right:55,bottom:48,left:width<700?150:235};
-  const industries=[...new Set(data.under35ByIndustry.map(d=>d.industry))]; const max=70; const x=linear([0,max],[m.left,width-m.right]); const rowH=(height-m.top-m.bottom)/industries.length;
+  const industryRows = selectedMarketPeriod === "early" ? data.under35ByIndustryEarly : data.under35ByIndustry;
+  const industries=[...new Set(industryRows.map(d=>d.industry))]; const max=70; const x=linear([0,max],[m.left,width-m.right]); const rowH=(height-m.top-m.bottom)/industries.length;
   [0,20,40,60].forEach(t=>{svg.appendChild(s("line",{x1:x(t),x2:x(t),y1:m.top,y2:height-m.bottom,class:"grid-line"}));}); xAxis(svg,x,[0,20,40,60],height-m.bottom,v=>`${v}%`,"Workers under 35 within industry (%)");
-  industries.forEach((industry,i)=>{const y=m.top+i*rowH; const a=data.under35ByIndustry.find(d=>d.industry===industry&&d.region==="内地"); const b=data.under35ByIndustry.find(d=>d.industry===industry&&d.region==="香港");
+  industries.forEach((industry,i)=>{const y=m.top+i*rowH; const a=industryRows.find(d=>d.industry===industry&&d.region==="内地"); const b=industryRows.find(d=>d.industry===industry&&d.region==="香港");
     svg.appendChild(s("text",{x:m.left-10,y:y+rowH/2+4,"text-anchor":"end",class:"bar-label"},industry.length>34?industry.slice(0,32)+"…":industry));
-    [[a,"#5B4BDB",-5,"Mainland China"],[b,"#D7647D",6,"Hong Kong"]].forEach(([d,color,offset,label])=>{const bar=s("line",{x1:x(0),x2:x(d.share),y1:y+rowH/2+offset,y2:y+rowH/2+offset,stroke:color,"stroke-width":6,"stroke-linecap":"round"});tip(bar,`<strong>${industry} · ${label}</strong>${fmt(d.share,1)}%`);svg.appendChild(bar);});
+    [[a,mainlandColor,-5,"Mainland China"],[b,hongKongColor,6,"Hong Kong"]].forEach(([d,color,offset,label])=>{const bar=s("line",{x1:x(0),x2:x(d.share),y1:y+rowH/2+offset,y2:y+rowH/2+offset,stroke:color,"stroke-width":6,"stroke-linecap":"round"});marketRegionMark(bar,label);tip(bar,`<strong>${industry} · ${label}</strong>${fmt(d.share,1)}%`);svg.appendChild(bar);});
   });
 }
 
@@ -108,43 +175,184 @@ function renderTotalEmployment() {
   const x=linear([rows[0].year,rows.at(-1).year],[m.left,width-m.right]); const min=Math.floor(Math.min(...rows.map(d=>d.thousand))/100)*100; const max=Math.ceil(Math.max(...rows.map(d=>d.thousand))/100)*100; const y=linear([min,max],[height-m.bottom,m.top]);
   yGrid(svg,y,[min,(min+max)/2,max],m.left,width-m.right,v=>fmt(v,0),"Employed persons ('000)"); xAxis(svg,x,[2008,2012,2016,2020,2025],height-m.bottom,String,"Year");
   const area=areaPath(rows.map(d=>[x(d.year),y(d.thousand)]),rows.map(d=>[x(d.year),y(min)]));
-  svg.appendChild(s("path",{d:area,fill:"rgba(91,75,219,.12)"}));
+  const gradient = s("linearGradient", { id: "employment-gradient", x1: "0%", x2: "0%", y1: "100%", y2: "0%" });
+  gradient.append(s("stop", { offset: "0%", "stop-color": "#C6C1F0", "stop-opacity": .25 }), s("stop", { offset: "100%", "stop-color": "#7F74A7", "stop-opacity": .55 }));
+  const defs = s("defs");
+  defs.appendChild(gradient);
+  svg.append(defs, s("path", { d: area, fill: "url(#employment-gradient)" }));
   svg.appendChild(s("path",{d:linePath(rows.map(d=>[x(d.year),y(d.thousand)])),fill:"none",stroke:maleColor,"stroke-width":3}));
-  rows.forEach(d=>{const dot=s("circle",{cx:x(d.year),cy:y(d.thousand),r:3.5,fill:maleColor});tip(dot,`<strong>${d.year}</strong>${fmt(d.thousand,1)} thousand employed`);svg.appendChild(dot);});
+  rows.forEach(d => {
+    const selected = d.year === compositionYear();
+    const available = data.employmentStatus.some(row => row.year === d.year) && data.occupationMix.some(row => row.year === d.year);
+    const dot = s("circle", { cx: x(d.year), cy: y(d.thousand), r: selected ? 6 : 4,
+      fill: maleColor, stroke: selected ? "#fff" : "none", "stroke-width": 2,
+      tabindex: available ? "0" : "-1", role: "button", "aria-disabled": String(!available), "aria-label": available ? `Select ${d.year}` : `${d.year}: linked data unavailable`,
+      "aria-pressed": String(selected), "data-year": d.year, style: available ? "cursor: pointer" : "cursor: default" });
+    const select = () => {
+      if (!available) return;
+      $("#composition-year").value = d.year;
+      renderers.structure();
+    };
+    dot.addEventListener("click", select);
+    dot.addEventListener("keydown", event => {
+      if (event.key === "Enter" || event.key === " ") { event.preventDefault(); select(); }
+    });
+    tip(dot, `<strong>${d.year}</strong>${fmt(d.thousand,1)} thousand employed<br>${available ? "Click to explore this year" : "Linked data available from 2016"}`);
+    svg.appendChild(dot);
+  });
 }
 
-function renderIndustryShare() {
-  const selected=selectedIndustryShare; const {svg,width,height}=makeSvg("#industry-share-chart"); const m={top:50,right:20,bottom:54,left:58};
+function drawIndustryShare() {
+  const selected=selectedIndustryShare; const {svg,width,height}=makeSvg("#industry-share-chart"); const m={top:12,right:20,bottom:54,left:58};
   const industries=[...new Set(data.industryShares.map(d=>d.industry))], years=[...new Set(data.industryShares.map(d=>d.year))].sort((a,b)=>a-b); const x=linear([years[0],years.at(-1)],[m.left,width-m.right]);
   const short={"Manufacturing":"Manufacturing","Import/export trade and wholesale":"Trade & wholesale","Retail, accommodation and food services":"Retail & lodging","Transportation, storage, postal and courier services, information and communications":"Transport & ICT","Financing, insurance, real estate, professional and business services":"Finance & business","Public administration, social and personal services":"Public & social","Construction":"Construction","Other industries":"Other"};
-  const legendWidth=Math.max(120,(width-m.left-m.right)/4);
-  industries.forEach((industry,i)=>{const lx=m.left+(i%4)*legendWidth,ly=12+Math.floor(i/4)*18;const item=s("g",{class:"chart-legend-item",tabindex:"0"});item.append(s("rect",{x:lx,y:ly,width:9,height:9,rx:2,fill:industryShareColors[industry]}),s("text",{x:lx+14,y:ly+9,class:"tick-label"},short[industry]));item.addEventListener("click",()=>{selectedIndustryShare=industry;renderIndustryShare();});svg.appendChild(item);});
+  $("#industry-share-legend").replaceChildren(...industries.map(industry => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = short[industry];
+    button.title = industry;
+    button.style.setProperty("--industry-color", industryShareColors[industry]);
+    button.setAttribute("aria-pressed", String(selected === industry));
+    button.addEventListener("click", () => {
+      selectedIndustryShare = selectedIndustryShare === industry ? null : industry;
+      renderIndustryShare();
+    });
+    return button;
+  }));
   $("#industry-share-reset").hidden=!selected;
   if(selected){
     const rows=data.industryShares.filter(d=>d.industry===selected); const max=Math.ceil(Math.max(...rows.map(d=>d.share))/5)*5; const y=linear([0,max],[height-m.bottom,m.top]); yGrid(svg,y,[0,max/2,max],m.left,width-m.right,v=>`${fmt(v,0)}%`,"Employment share (%)"); xAxis(svg,x,[2008,2012,2016,2020,2025],height-m.bottom,String,"Year");
     const color=industryShareColors[selected],area=s("path",{d:areaPath(rows.map(d=>[x(d.year),y(d.share)]),rows.map(d=>[x(d.year),y(0)])),fill:color,opacity:.24,stroke:color,"stroke-width":3,class:"interactive-area"});
-    tip(area,`<strong>${selected}</strong>Click again to return to all industries.`);area.addEventListener("click",()=>{selectedIndustryShare=null;renderIndustryShare();});svg.appendChild(area);rows.forEach(d=>{const dot=s("circle",{cx:x(d.year),cy:y(d.share),r:3.5,fill:color});tip(dot,`<strong>${selected} · ${d.year}</strong>${fmt(d.share,1)}%`);svg.appendChild(dot);}); return;
+    tip(area,`<strong>${selected}</strong>Click again to return to all industries.`);area.addEventListener("click",()=>{selectedIndustryShare=null;renderIndustryShare();});svg.appendChild(area);rows.forEach(d => {
+      const available = d.year >= 2016;
+      const dot = s("circle", { cx: x(d.year), cy: y(d.share),
+        r: d.year === compositionYear() ? 5 : 3.5, fill: color,
+        "data-year": d.year, tabindex: available ? "0" : "-1",
+        role: "button", "aria-disabled": String(!available),
+        "aria-pressed": String(d.year === compositionYear()),
+        "aria-label": `Select ${d.year}`, style: available ? "cursor: pointer" : "cursor: default" });
+      const selectYear = () => {
+        if (!available) return;
+        $("#composition-year").value = d.year;
+        hideTip();
+        renderers.structure();
+      };
+      dot.addEventListener("click", selectYear);
+      dot.addEventListener("keydown", event => {
+        if (event.key === "Enter" || event.key === " ") { event.preventDefault(); selectYear(); }
+      });
+      tip(dot, `<strong>${selected} · ${d.year}</strong>${fmt(d.share,1)}%<br>${available ? "Click to explore this year" : "Linked data available from 2016"}`);
+      svg.appendChild(dot);
+    }); return;
   }
   const y=linear([0,100],[height-m.bottom,m.top]); yGrid(svg,y,[0,25,50,75,100],m.left,width-m.right,v=>`${v}%`,"Employment share (%)"); xAxis(svg,x,[2008,2012,2016,2020,2025],height-m.bottom,String,"Year");
   const stacks=new Map(industries.map(i=>[i,[]])); years.forEach(year=>{let total=0;industries.forEach(industry=>{const value=data.industryShares.find(d=>d.year===year&&d.industry===industry)?.share||0;stacks.get(industry).push({year,value,y0:total,y1:total+value});total+=value;});});
   industries.forEach(industry=>{const rows=stacks.get(industry);const p=s("path",{d:areaPath(rows.map(d=>[x(d.year),y(d.y1)]),rows.map(d=>[x(d.year),y(d.y0)])),fill:industryShareColors[industry],opacity:.86,stroke:"#fff","stroke-width":.7,class:"interactive-area"});tip(p,`<strong>${industry}</strong>Click to isolate this industry.`);p.addEventListener("click",()=>{selectedIndustryShare=industry;renderIndustryShare();});svg.appendChild(p);});
 }
 
+function renderIndustryShare() {
+  drawIndustryShare();
+  const svg = $("#industry-share-chart svg");
+  const width = svg.viewBox.baseVal.width, height = svg.viewBox.baseVal.height;
+  const year = compositionYear();
+  const x = linear([2008, 2025], [58, width - 20])(year);
+  const top = 12, bottom = height - 54;
+  const rows = data.industryShares.filter(row => row.year === year &&
+    (!selectedIndustryShare || row.industry === selectedIndustryShare));
+  svg.appendChild(s("line", { x1: x, x2: x, y1: top, y2: bottom,
+    stroke: "#857C96", "stroke-width": .75, "stroke-dasharray": "3 3", "pointer-events": "none" }));
+  // Replace nearby axis ticks with the selected year to avoid overlapping labels.
+  svg.querySelectorAll(".tick-label").forEach(label => {
+    if (+label.getAttribute("y") === bottom + 19 && Math.abs(+label.getAttribute("x") - x) < 30) label.remove();
+  });
+  svg.appendChild(s("text", { x, y: bottom + 19,
+    "text-anchor": "middle", class: "direct-label" }, String(year)));
+  const marker = s("rect", { x: x - 7, y: top, width: 14, height: bottom - top, fill: "transparent" });
+  tip(marker, `<strong>${year} · Employment share</strong>` +
+    rows.map(row => `${row.industry}: ${fmt(row.share, 1)}%`).join("<br>"));
+  if (selectedIndustryShare) marker.setAttribute("pointer-events", "none");
+  svg.appendChild(marker);
+}
+
+function showCompositionUnavailable(svg, width, height) {
+  svg.appendChild(s("text", { x: width / 2, y: height / 2, "text-anchor": "middle",
+    class: "tick-label" }, `No data available for ${compositionYear()} (available: 2016–2025)`));
+}
+
 function compositionYear(){return +$("#composition-year").value;}
 function renderStatus(){
-  const {svg,width,height}=makeSvg("#status-chart"),rows=data.employmentStatus.filter(d=>d.year===compositionYear()),total=rows.reduce((a,d)=>a+d.employedThousand,0),cx=Math.min(width*.37,125),cy=height/2,r=Math.min(88,height*.36),r0=r*.58;let angle=-Math.PI/2;
+  const {svg,width,height}=makeSvg("#status-chart"),rows=data.employmentStatus.filter(d=>d.year===compositionYear()),total=rows.reduce((a,d)=>a+d.employedThousand,0),cx=Math.min(width*.22,125),cy=height/2,r=Math.min(88,height*.36,width*.20),r0=r*.58;let angle=-Math.PI/2;
+  if (!rows.length) { showCompositionUnavailable(svg, width, height); return; }
   rows.forEach((d,i)=>{const next=angle+d.employedThousand/total*Math.PI*2,color=palette[i];const arc=s("path",{d:donutArc(cx,cy,r0,r,angle,next),fill:color,stroke:"#fff","stroke-width":2});tip(arc,`<strong>${d.status}</strong>${fmt(d.employedThousand,1)} thousand<br>${fmt(d.employedThousand/total*100,1)}%`);svg.appendChild(arc);angle=next;});
-  svg.append(s("text",{x:cx,y:cy-2,"text-anchor":"middle",class:"donut-value"},String(compositionYear())),s("text",{x:cx,y:cy+18,"text-anchor":"middle",class:"tick-label"},"employment status"));
-  rows.forEach((d,i)=>{const y=44+i*43,x=Math.max(210,width*.58);svg.append(s("rect",{x,y:y-9,width:10,height:10,rx:2,fill:palette[i]}),s("text",{x:x+17,y,class:"bar-label"},d.status),s("text",{x:x+17,y:y+17,class:"tick-label"},`${fmt(d.employedThousand,1)}k · ${fmt(d.employedThousand/total*100,1)}%`));});
+  svg.append(s("text",{x:cx,y:cy-2,"text-anchor":"middle",class:"donut-value"},String(compositionYear())),s("text",{x:cx,y:cy+18,"text-anchor":"middle",class:"tick-label donut-caption"},"employment status"));
+  rows.forEach((d,i)=>{const y=26+i*Math.min(43,(height-49)/Math.max(1,rows.length-1)),x=Math.round(width*.45);svg.append(s("rect",{x,y:y-9,width:10,height:10,rx:2,fill:palette[i]}),s("text",{x:x+17,y,class:"bar-label"},d.status),s("text",{x:x+17,y:y+17,class:"tick-label"},`${fmt(d.employedThousand,1)}k · ${fmt(d.employedThousand/total*100,1)}%`));});
 }
+function occupationTiles(rows, x, y, width, height, total) {
+  if (rows.length === 1) return [{ occupation: rows[0], x, y, width, height }];
+
+  // Split the longer side using the two groups' shares of total employment.
+  let split = 1;
+  let firstTotal = rows[0].employedThousand;
+  while (split < rows.length - 1 &&
+    Math.abs(total / 2 - firstTotal - rows[split].employedThousand) < Math.abs(total / 2 - firstTotal)) {
+    firstTotal += rows[split].employedThousand;
+    split++;
+  }
+  const share = firstTotal / total;
+  const first = rows.slice(0, split);
+  const second = rows.slice(split);
+  if (width >= height) {
+    const cut = width * share;
+    return [
+      ...occupationTiles(first, x, y, cut, height, firstTotal),
+      ...occupationTiles(second, x + cut, y, width - cut, height, total - firstTotal)
+    ];
+  }
+  const cut = height * share;
+  return [
+    ...occupationTiles(first, x, y, width, cut, firstTotal),
+    ...occupationTiles(second, x, y + cut, width, height - cut, total - firstTotal)
+  ];
+}
+
 function renderOccupation() {
-  const {svg,width,height}=makeSvg("#occupation-chart"),rows=data.occupationMix.filter(d=>d.year===compositionYear()).sort((a,b)=>b.employedThousand-a.employedThousand),cols=3,gap=8,pad=8,cellW=(width-pad*2-gap*(cols-1))/cols,cellH=(height-pad*2-gap*2)/3,min=Math.min(...rows.map(d=>d.employedThousand)),max=Math.max(...rows.map(d=>d.employedThousand));
-  const short={"Associate professionals":"Associate professionals","Clerical support workers":"Clerical support","Craft and related trades workers":"Craft & trades","Elementary occupations":"Elementary occupations","Managers":"Managers","Other occupations":"Other occupations","Plant and machine operators and assemblers":"Machine operators","Professionals":"Professionals","Services and sales workers":"Services & sales"};
-  rows.forEach((d,i)=>{const col=i%cols,row=Math.floor(i/cols),x=pad+col*(cellW+gap),y=pad+row*(cellH+gap),opacity=.18+.72*(d.employedThousand-min)/(max-min||1),tile=s("rect",{x,y,width:cellW,height:cellH,rx:5,fill:maleColor,opacity});tip(tile,`<strong>${d.occupation}</strong>${fmt(d.employedThousand,1)} thousand`);svg.append(tile,s("text",{x:x+12,y:y+24,class:"heat-label"},short[d.occupation]),s("text",{x:x+12,y:y+46,class:"heat-value"},`${fmt(d.employedThousand,1)}k`));});
+  const { svg, width, height } = makeSvg("#occupation-chart");
+  const all = data.occupationMix;
+  const occupations = [...new Set(all.map(d => d.occupation))].sort();
+  const rows = all.filter(d => d.year === compositionYear() && d.employedThousand > 0)
+    .sort((a, b) => b.employedThousand - a.employedThousand);
+  if (!rows.length) { showCompositionUnavailable(svg, width, height); return; }
+
+  const shades = ["#B9B0D8", "#C6C1F0", "#A696C4", "#C799BC", "#DDB5D5", "#B898BC", "#9B93C9", "#CE9AB8", "#E3A9C8"];
+  const short = {
+    "Associate professionals": "Associate pros",
+    "Clerical support workers": "Clerical support",
+    "Craft and related trades workers": "Craft & trades",
+    "Elementary occupations": "Elementary",
+    "Managers": "Managers",
+    "Other occupations": "Other",
+    "Plant and machine operators and assemblers": "Machine operators",
+    "Professionals": "Professionals",
+    "Services and sales workers": "Services & sales"
+  };
+  const total = rows.reduce((sum, row) => sum + row.employedThousand, 0);
+  for (const tile of occupationTiles(rows, 2, 2, width - 4, height - 4, total)) {
+    const row = tile.occupation;
+    const color = shades[occupations.indexOf(row.occupation) % shades.length];
+    const rect = s("rect", { x: tile.x, y: tile.y, width: tile.width, height: tile.height, fill: color, stroke: "#F7F6FA", "stroke-width": 2 });
+    tip(rect, `<strong>${row.occupation}</strong>${fmt(row.employedThousand, 1)} thousand employed<br>${fmt(row.employedThousand / total * 100, 1)}%`);
+    svg.appendChild(rect);
+
+    if (tile.height < 45) continue;
+    const label = s("text", { x: tile.x + 8, y: tile.y + 18, class: "heat-label" }, short[row.occupation] ?? row.occupation);
+    svg.appendChild(label);
+    if (label.getComputedTextLength() > tile.width - 16) label.remove();
+    else svg.appendChild(s("text", { x: tile.x + 8, y: tile.y + 35, class: "heat-value" }, `${fmt(row.employedThousand, 1)}k`));
+  }
 }
 
 function focusIndustry(){return $("#opportunity-industry-select").value;}
-function industryColor(name){const selected=focusIndustry();return selected==="all"||selected===name?"#5B4BDB":"#dfe2e8";}
+function industryColor(name){const selected=focusIndustry();return selected==="all"||selected===name?"#7F74A7":"#dfe2e8";}
 function renderDemandBars(selector,key,titleFormat,axisTitle){
   const {svg,width,height}=makeSvg(selector);const rows=data.demand2026Q2.slice().sort((a,b)=>b.employment-a.employment);const m={top:10,right:55,bottom:50,left:width<540?135:170};const max=Math.max(...rows.map(d=>d[key]));const x=linear([0,max*1.08],[m.left,width-m.right]);const rowH=(height-m.top-m.bottom)/rows.length;
   xAxis(svg,x,[0,max/2,max],height-m.bottom,titleFormat,axisTitle);
@@ -155,22 +363,609 @@ function conditionMatch(name,selected){const map={"Manufacturing":["Manufacturin
 function renderConditions(){const {svg,width,height}=makeSvg("#conditions-chart");const rows=data.jobConditions2025;const m={top:20,right:90,bottom:58,left:64};const x=linear([15000,26000],[m.left,width-m.right]);const y=linear([46,38],[height-m.bottom,m.top]);yGrid(svg,y,[38,40,42,44,46],m.left,width-m.right,v=>`${v} h`,"Median weekly hours");xAxis(svg,x,[15000,20000,25000],height-m.bottom,v=>`${fmt(v/1000,0)}k`,"Median monthly earnings (HKD)");
   rows.forEach((d,i)=>{const active=conditionMatch(d.industry,focusIndustry());const dot=s("circle",{cx:x(d.medianPay),cy:y(d.medianHours),r:active?7:5,fill:active?palette[i%palette.length]:"#dfe2e8",stroke:"#fff","stroke-width":2});tip(dot,`<strong>${d.industry}</strong>HK$${fmt(d.medianPay)} per month<br>${fmt(d.medianHours,1)} hours per week`);svg.append(dot,s("text",{x:x(d.medianPay)+9,y:y(d.medianHours)+4,class:"tick-label",fill:active?"#20232a":"#a7adb7"},d.industry));});}
 
-function renderParticipation(){const year=+$("#participation-year").value;const {svg,width,height}=makeSvg("#participation-chart");const rows=data.participationByAgeSex.filter(d=>d.year===year);const ages=[...new Set(rows.map(d=>d.age))];const m={top:20,right:60,bottom:70,left:55};const x=linear([0,ages.length-1],[m.left,width-m.right]);const y=linear([0,100],[height-m.bottom,m.top]);yGrid(svg,y,[0,25,50,75,100],m.left,width-m.right,v=>`${v}%`,"Participation rate (%)");
-  ages.forEach((age,i)=>svg.appendChild(s("text",{x:x(i),y:height-m.bottom+18,"text-anchor":"end",transform:`rotate(-40 ${x(i)} ${height-m.bottom+18})`,class:"tick-label"},age)));
-  [["Female","#D7647D"],["Male","#5B4BDB"]].forEach(([sex,color])=>{const series=rows.filter(d=>d.sex===sex);svg.appendChild(s("path",{d:linePath(series.map((d,i)=>[x(i),y(d.rate)])),fill:"none",stroke:color,"stroke-width":3}));series.forEach((d,i)=>{const dot=s("circle",{cx:x(i),cy:y(d.rate),r:3.5,fill:color});tip(dot,`<strong>${sex} · age ${d.age}</strong>${fmt(d.rate,1)}% participation`);svg.appendChild(dot);});const last=series.at(-1);svg.appendChild(s("text",{x:x(ages.length-1)+8,y:y(last.rate)+4,fill:color,class:"direct-label"},sex));});}
+function renderParticipation() {
+  const { svg, width } = makeSvg("#participation-chart");
+  const linked = $("#participation-mode").value === "linked";
+  const selectedYear = +$("#gender-employment-year").value;
+  const rows = linked ? participationHistory.filter(row => row.year === selectedYear) : data.participationByAgeSex;
+  $("#participation-selected-year").textContent = linked ? selectedYear : "";
+  $("#participation-selected-year").hidden = !linked;
+  $("#participation-play").disabled = !linked || !participationHistory.length;
+  $("#participation-chart").setAttribute("aria-label", linked ? `Participation by age and sex in ${selectedYear}` : "Participation in 1985, 2005 and 2025");
+  const ages = [...new Set(rows.map(row => row.age))];
+  const years = linked ? [{ year: selectedYear, color: maleColor }] : [
+    { year: 1985, color: "#7F74A7" },
+    { year: 2005, color: "#BE6482" },
+    { year: 2025, color: "#DDB5D5" }
+  ];
+  $("#participation-legend").hidden = linked;
+  $("#participation-legend").replaceChildren(...years.map(({ year, color }) => {
+    const item = document.createElement("li");
+    item.style.setProperty("--year-color", color);
+    item.dataset.year = year;
+    item.tabIndex = 0;
+    item.textContent = year;
+    return item;
+  }));
+
+  const stacked = matchMedia("(max-width: 760px)").matches && width < 520;
+  const peer = $("#gender-employment-chart");
+  const chartTop = $("#participation-chart").getBoundingClientRect().top;
+  const peerAxis = peer.getBoundingClientRect().top + peer.clientHeight - 44;
+  const panelHeight = desktopDashboard() ? $("#participation-chart").clientHeight : stacked ? 200 : Math.max(170, Math.round(peerAxis - chartTop + 43));
+  const left = 41, right = 9, gap = 20;
+  const panelWidth = (width - left - right - (stacked ? 0 : gap)) / (stacked ? 1 : 2);
+  const height = stacked ? panelHeight * 2 + 12 : panelHeight;
+  svg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+  svg.style.height = desktopDashboard() ? "100%" : `${height}px`;
+  const ticks = [0, 20, 40, 60, 80, 100];
+
+  if (!stacked) svg.appendChild(s("line", {
+    x1: left + panelWidth + gap / 2, x2: left + panelWidth + gap / 2,
+    y1: 5, y2: panelHeight - 21, class: "grid-line"
+  }));
+
+  ["Male", "Female"].forEach((sex, index) => {
+    const start = left + (stacked ? 0 : index * (panelWidth + gap));
+    const top = stacked ? index * (panelHeight + 12) : 0;
+    const baseline = top + panelHeight - 70;
+    const y = linear([0, 100], [baseline, top + 34]);
+    const column = panelWidth / ages.length;
+    const x = i => start + (i + .5) * column;
+    const dotRadius = Math.min(5, column * .24);
+    svg.appendChild(s("text", { x: start + panelWidth / 2, y: top + 17, "text-anchor": "middle", class: "direct-label" }, sex));
+
+    ticks.forEach(tick => {
+      svg.appendChild(s("line", { x1: start, x2: start + panelWidth, y1: y(tick), y2: y(tick), class: "grid-line" }));
+      if (!index || stacked) svg.appendChild(s("text", {
+        x: start - 6, y: y(tick) + 4, "text-anchor": "end", class: "tick-label"
+      }, `${tick}%`));
+    });
+
+    ages.forEach((age, i) => {
+      const labelX = x(i), labelY = baseline + 10;
+      svg.appendChild(s("text", {
+        x: labelX, y: labelY, "text-anchor": "end", class: "tick-label",
+        style: `font-size: ${Math.min(11.5, column - 1)}px`,
+        transform: `rotate(-90 ${labelX} ${labelY})`
+      }, age));
+    });
+
+    svg.appendChild(s("text", {
+      x: start + panelWidth / 2, y: top + panelHeight - 5,
+      "text-anchor": "middle", class: "axis-label"
+    }, "Age (years)"));
+
+    if (linked) {
+      const points = ages.map(age => rows.find(row => row.sex === sex && row.age === age)).filter(Boolean);
+      svg.appendChild(s("path", { d: linePath(points.map(row => [x(ages.indexOf(row.age)), y(row.rate)])),
+        fill: "none", stroke: sex === "Male" ? maleColor : femaleColor, "stroke-width": 2 }));
+    }
+    rows.filter(row => row.sex === sex).forEach(row => {
+      const yearIndex = years.findIndex(item => item.year === row.year);
+      if (yearIndex < 0) return;
+      const dot = s("circle", {
+        cx: x(ages.indexOf(row.age)),
+        cy: y(row.rate), r: dotRadius, fill: linked ? (sex === "Male" ? maleColor : femaleColor) : years[yearIndex].color,
+        "data-year": row.year, "data-sex": sex, "data-age": row.age
+      });
+      tip(dot, `<strong>${sex} · ${row.age} · ${row.year}</strong>${fmt(row.rate, 1)}% participation`);
+      svg.appendChild(dot);
+    });
+  });
+}
 
 function genderGroups(){const map=new Map();data.genderPay2025.forEach(d=>{if(!map.has(d.industry))map.set(d.industry,{industry:d.industry});map.get(d.industry)[d.sex.toLowerCase()]={pay:d.medianPay,employment:d.employedThousand};});return [...map.values()];}
-function renderGenderEmployment(){const {svg,width,height}=makeSvg("#gender-employment-chart");const rows=genderGroups();const m={top:10,right:45,bottom:52,left:width<600?145:220};const x=linear([0,100],[m.left,width-m.right]);const rowH=(height-m.top-m.bottom)/rows.length;xAxis(svg,x,[0,25,50,75,100],height-m.bottom,v=>`${v}%`,"Share of industry employment (%)");rows.forEach((d,i)=>{const total=d.female.employment+d.male.employment,f=d.female.employment/total*100,y=m.top+i*rowH+7,h=Math.max(12,rowH-14);const a=s("rect",{x:m.left,y,width:x(f)-m.left,height:h,fill:"#D7647D"});const b=s("rect",{x:x(f),y,width:x(100)-x(f),height:h,fill:"#5B4BDB"});tip(a,`<strong>${d.industry} · Female</strong>${fmt(f,1)}%`);tip(b,`<strong>${d.industry} · Male</strong>${fmt(100-f,1)}%`);svg.append(a,b,s("text",{x:m.left-9,y:y+h/2+4,"text-anchor":"end",class:"bar-label"},d.industry.length>30?d.industry.slice(0,28)+"…":d.industry));});}
-function renderPayGap(){const sort=$("#pay-sort").value;const {svg,width,height}=makeSvg("#pay-gap-chart");const rows=genderGroups().map(d=>({...d,gap:d.male.pay-d.female.pay})).sort((a,b)=>sort==="gap"?b.gap-a.gap:b[sort].pay-a[sort].pay);const m={top:12,right:70,bottom:52,left:width<600?150:230};const max=Math.ceil(Math.max(...rows.map(d=>d.male.pay))/10000)*10000;const x=linear([0,max],[m.left,width-m.right]);const rowH=(height-m.top-m.bottom)/rows.length;xAxis(svg,x,[0,10000,20000,30000].filter(v=>v<=max),height-m.bottom,v=>`${v/1000}k`,"Median monthly earnings (HKD)");rows.forEach((d,i)=>{const y=m.top+i*rowH+rowH/2;svg.appendChild(s("line",{x1:x(d.female.pay),x2:x(d.male.pay),y1:y,y2:y,stroke:"#b7bbc3","stroke-width":3}));const f=s("circle",{cx:x(d.female.pay),cy:y,r:6,fill:"#D7647D"}),mDot=s("circle",{cx:x(d.male.pay),cy:y,r:6,fill:"#5B4BDB"});tip(f,`<strong>${d.industry} · Female</strong>HK$${fmt(d.female.pay)}`);tip(mDot,`<strong>${d.industry} · Male</strong>HK$${fmt(d.male.pay)}<br>Gap HK$${fmt(d.gap)}`);svg.append(f,mDot,s("text",{x:m.left-9,y:y+4,"text-anchor":"end",class:"bar-label"},d.industry.length>30?d.industry.slice(0,28)+"…":d.industry),s("text",{x:x(d.male.pay)+9,y:y+4,class:"tick-label"},`${fmt(d.gap/1000,1)}k gap`));});}
-function renderPayTrend(){const {svg,width,height}=makeSvg("#pay-trend-chart");const rows=data.overallPayTrend;const years=[...new Set(rows.map(d=>d.year))];const m={top:20,right:60,bottom:55,left:62};const x=linear([years[0],years.at(-1)],[m.left,width-m.right]);const max=Math.ceil(Math.max(...rows.map(d=>d.medianPay))/5000)*5000;const y=linear([0,max],[height-m.bottom,m.top]);yGrid(svg,y,[0,10000,20000,30000].filter(v=>v<=max),m.left,width-m.right,v=>`${v/1000}k`,"Median monthly earnings (HKD)");xAxis(svg,x,[1985,1995,2005,2015,2025],height-m.bottom,String,"Year");[["Female","#D7647D"],["Male","#5B4BDB"]].forEach(([sex,color])=>{const series=rows.filter(d=>d.sex===sex);svg.appendChild(s("path",{d:linePath(series.map(d=>[x(d.year),y(d.medianPay)])),fill:"none",stroke:color,"stroke-width":3}));const last=series.at(-1);svg.appendChild(s("text",{x:x(last.year)+8,y:y(last.medianPay)+4,fill:color,class:"direct-label"},sex));series.filter((_,i)=>i%5===0||i===series.length-1).forEach(d=>{const dot=s("circle",{cx:x(d.year),cy:y(d.medianPay),r:3.5,fill:color});tip(dot,`<strong>${sex} · ${d.year}</strong>HK$${fmt(d.medianPay)}`);svg.appendChild(dot);});});}
+const industryEmploymentAliases = {
+  "Construction": "Construction",
+  "Financing, insurance, real estate, professional and business services": "Finance & business",
+  "Import/export trade and wholesale": "Trade & wholesale",
+  "Manufacturing": "Manufacturing",
+  "Public administration, social and personal services": "Public & social",
+  "Retail, accommodation and food services": "Retail & lodging",
+  "Transportation, storage, postal and courier services, information and communications": "Transport & IT",
+  "Other industries": "Other"
+};
 
-function renderUnemployment(){const {svg,width,height}=makeSvg("#unemployment-chart");const rows=data.unemploymentAnnual;const m={top:20,right:32,bottom:55,left:55};const x=linear([rows[0].year,rows.at(-1).year],[m.left,width-m.right]);const max=Math.ceil(Math.max(...rows.map(d=>d.rate)));const y=linear([0,max],[height-m.bottom,m.top]);yGrid(svg,y,[0,2,4,6,8].filter(v=>v<=max),m.left,width-m.right,v=>`${v}%`,"Unemployment rate (%)");xAxis(svg,x,[1985,1995,2005,2015,2025],height-m.bottom,String,"Year");const area=areaPath(rows.map(d=>[x(d.year),y(d.rate)]),rows.map(d=>[x(d.year),y(0)]));svg.appendChild(s("path",{d:area,fill:"rgba(103,84,217,.10)"}));svg.appendChild(s("path",{d:linePath(rows.map(d=>[x(d.year),y(d.rate)])),fill:"none",stroke:"#5B4BDB","stroke-width":3}));[{year:2003,label:"SARS"},{year:2008,label:"GFC"},{year:2020,label:"COVID-19"}].forEach(e=>{svg.appendChild(s("line",{x1:x(e.year),x2:x(e.year),y1:m.top,y2:height-m.bottom,stroke:"#D7647D","stroke-dasharray":"3 4"}));svg.appendChild(s("text",{x:x(e.year)+4,y:m.top+13,fill:"#B65360",class:"tick-label"},e.label));});rows.forEach(d=>{const dot=s("circle",{cx:x(d.year),cy:y(d.rate),r:7,fill:"transparent"});tip(dot,`<strong>${d.year}</strong>${fmt(d.rate,1)}% unemployment`);svg.appendChild(dot);});}
-function renderCrisis(){const selected=$("#crisis-select").value;const {svg,width,height}=makeSvg("#crisis-chart");const all=data.crisisRecovery,crises=[...new Set(all.map(d=>d.crisis))];const rows=selected==="all"?all:all.filter(d=>d.crisis===selected);const m={top:20,right:55,bottom:55,left:60};const x=linear([-8,16],[m.left,width-m.right]);const min=Math.floor(Math.min(...all.map(d=>d.changePp))),max=Math.ceil(Math.max(...all.map(d=>d.changePp)));const y=linear([min,max],[height-m.bottom,m.top]);yGrid(svg,y,[min,0,max],m.left,width-m.right,v=>`${v>0?"+":""}${v} pp`,"Change (pp)");xAxis(svg,x,[-8,-4,0,4,8,12,16],height-m.bottom,v=>v>0?`+${v}`:v,"Quarters from event onset");svg.appendChild(s("line",{x1:x(0),x2:x(0),y1:m.top,y2:height-m.bottom,stroke:"#8e949e","stroke-width":1.5}));crises.forEach((crisis,i)=>{const series=rows.filter(d=>d.crisis===crisis);if(!series.length)return;const color=palette[i];svg.appendChild(s("path",{d:linePath(series.map(d=>[x(d.relativeQuarter),y(d.changePp)])),fill:"none",stroke:color,"stroke-width":3}));const last=series.at(-1);svg.appendChild(s("text",{x:x(last.relativeQuarter)+7,y:y(last.changePp)+4,fill:color,class:"direct-label"},crisis.split(" (")[0]));series.forEach(d=>{const dot=s("circle",{cx:x(d.relativeQuarter),cy:y(d.changePp),r:5,fill:"transparent"});tip(dot,`<strong>${crisis}</strong>Quarter ${d.relativeQuarter>=0?"+":""}${d.relativeQuarter}<br>${d.changePp>=0?"+":""}${fmt(d.changePp,1)} pp`);svg.appendChild(dot);});});}
-function renderRiskGroup(){const group=$("#risk-group").value;const rows=(group==="age"?data.unemploymentAge2025.map(d=>({label:d.age,value:d.rate})):data.unemploymentEducation2025.map(d=>({label:d.education,value:d.rate}))).sort((a,b)=>b.value-a.value);const {svg,width,height}=makeSvg("#risk-group-chart");const m={top:12,right:45,bottom:50,left:width<520?130:185};const max=Math.ceil(Math.max(...rows.map(d=>d.value)));const x=linear([0,max],[m.left,width-m.right]);const rowH=(height-m.top-m.bottom)/rows.length;xAxis(svg,x,[0,Math.ceil(max/2),max],height-m.bottom,v=>`${v}%`,"Unemployment rate (%)");rows.forEach((d,i)=>{const y=m.top+i*rowH+5;const bar=s("rect",{x:m.left,y,width:x(d.value)-m.left,height:Math.max(12,rowH-10),rx:3,fill:i<2?"#D7647D":"#5B4BDB"});tip(bar,`<strong>${d.label}</strong>${fmt(d.value,1)}%`);svg.append(bar,s("text",{x:m.left-9,y:y+(rowH-10)/2+4,"text-anchor":"end",class:"bar-label"},d.label.length>29?d.label.slice(0,27)+"…":d.label),s("text",{x:x(d.value)+7,y:y+(rowH-10)/2+4,class:"tick-label"},`${fmt(d.value,1)}%`));});}
+function renderGenderEmployment() {
+  const { svg, width, height } = makeSvg("#gender-employment-chart");
+  const year = $("#gender-employment-year").value;
+  const employment = industryEmploymentBySex[year];
+  const industries = Object.entries(industryEmploymentAliases);
+  const m = { top: 24, right: 19, bottom: 44, left: Math.min(126, Math.round(width * .47)) };
+  const x = linear([0, 100], [m.left, width - m.right]);
+  const baseline = height - m.bottom;
+  const rowHeight = (baseline - m.top) / industries.length;
 
-const renderers={markets:()=>{renderAge();renderMiddleAge();renderUnder35();},structure:()=>{renderTotalEmployment();renderIndustryShare();renderStatus();renderOccupation();},equity:()=>{renderParticipation();renderGenderEmployment();renderPayGap();renderPayTrend();},risk:()=>{renderUnemployment();renderCrisis();renderRiskGroup();}};
-function switchChapter(name,scroll=false){activeChapter=name;$$('[data-chapter]').forEach(b=>{const on=b.dataset.chapter===name;b.classList.toggle("active",on);b.setAttribute("aria-selected",String(on));});$$('[data-panel]').forEach(p=>{const on=p.dataset.panel===name;p.hidden=!on;p.classList.toggle("active",on);});history.replaceState(null,"",`#${name}`);requestAnimationFrame(()=>renderers[name]());if(scroll)$(".chapter-tabs").scrollIntoView({behavior:"smooth",block:"start"});}
-function populateSelects(){const years=[...new Set(data.employmentStatus.map(d=>d.year))].sort((a,b)=>b-a),year=$("#composition-year");years.forEach(v=>year.add(new Option(v,v)));year.value=years[0];const crises=[...new Set(data.crisisRecovery.map(d=>d.crisis))];crises.forEach(v=>$("#crisis-select").add(new Option(v,v)));}
-function setup(){populateSelects();$$('[data-chapter]').forEach(b=>b.addEventListener("click",()=>switchChapter(b.dataset.chapter)));$("#industry-share-reset").addEventListener("click",()=>{selectedIndustryShare=null;renderIndustryShare();});$("#composition-year").addEventListener("change",()=>{renderStatus();renderOccupation();});$("#participation-year").addEventListener("change",renderParticipation);$("#pay-sort").addEventListener("change",renderPayGap);$("#crisis-select").addEventListener("change",renderCrisis);$("#risk-group").addEventListener("change",renderRiskGroup);const hash=location.hash.replace("#","");if(renderers[hash])activeChapter=hash;switchChapter(activeChapter);let timer;addEventListener("resize",()=>{clearTimeout(timer);timer=setTimeout(()=>renderers[activeChapter](),160);});}
+  xAxis(svg, x, width < 320 ? [0, 50, 100] : [0, 25, 50, 75, 100], baseline,
+    value => `${value}%`, "Share of industry employment (%)");
 
-fetch("data/data.json").then(r=>r.json()).then(json=>{data=json;setup();}).catch(error=>{console.error(error);document.body.insertAdjacentHTML("beforeend",'<p style="padding:40px">Data could not be loaded.</p>');});
+  industries.forEach(([industry, alias], index) => {
+    const [male, female] = employment[industry];
+    const total = male + female;
+    const femaleShare = female / total * 100;
+    const maleShare = 100 - femaleShare;
+    const center = m.top + (index + .5) * rowHeight;
+    const segments = [
+      { sex: "Male", start: 0, end: maleShare, share: maleShare, color: maleColor },
+      { sex: "Female", start: maleShare, end: 100, share: femaleShare, color: femaleColor }
+    ];
+    svg.appendChild(s("text", { x: m.left - 8, y: center + 4, "text-anchor": "end", class: "bar-label" }, alias));
+
+    const labels = segments.map(({ start, end, share, color, sex }) => {
+      const startX = x(start), endX = x(end);
+      const percentage = `${fmt(share, 2)}%`;
+      const label = s("text", { x: (startX + endX) / 2, "text-anchor": "middle", "font-size": 11, "font-weight": 650, "pointer-events": "none" }, percentage);
+      svg.appendChild(label);
+      return { startX, endX, label, labelWidth: label.getComputedTextLength(), percentage, color, sex };
+    });
+    const barHeight = 13;
+    const barTop = center - barHeight / 2;
+    for (const { startX, endX, label, labelWidth, percentage, color, sex } of labels) {
+      const bar = s("rect", { x: startX, y: barTop, width: endX - startX, height: barHeight, fill: color });
+      tip(bar, `<strong>${industry} · ${sex} · ${year}</strong>${percentage}`);
+      svg.insertBefore(bar, label);
+      const fitsInside = endX - startX >= labelWidth + 6;
+      label.setAttribute("fill", fitsInside ? "#fff" : "#282D33");
+      if (fitsInside) label.setAttribute("font-weight", 400);
+      label.setAttribute("y", fitsInside ? barTop + barHeight / 2 + 4 : barTop - 2);
+      if (!fitsInside) label.setAttribute("x", clamp((startX + endX) / 2, x(0) + labelWidth / 2, x(100) - labelWidth / 2));
+    }
+  });
+}
+function renderPayGap() {
+  const year = $("#gender-employment-year").value;
+  $("#industry-pay-year-label").textContent = year;
+  const { svg, width, height } = makeSvg("#pay-gap-chart");
+  const industries = Object.entries(industryEmploymentAliases);
+  const m = { top: 28, right: 48, bottom: 52, left: Math.min(126, Math.round(width * .47)) + 33 };
+  const highestPay = Math.max(...Object.values(industryPayBySex)
+    .flatMap(industries => Object.values(industries).flat()));
+  const max = Math.ceil(highestPay / 10000) * 10000;
+  const baseline = height - m.bottom;
+  const x = linear([0, max], [m.left, width - m.right]);
+  const rowHeight = (baseline - m.top) / industries.length;
+  const ticks = Array.from({ length: max / 10000 + 1 }, (_, i) => i * 10000);
+  ticks.slice(1, -1).forEach(value => {
+    svg.appendChild(s("line", { x1: x(value), x2: x(value), y1: m.top, y2: baseline, class: "grid-line" }));
+  });
+  [["Male", maleColor], ["Female", femaleColor]].forEach(([name, color], i) => {
+    const legendX = 4 + i * 60;
+    svg.append(s("circle", { cx: legendX + 4, cy: 9, r: 4, fill: color }),
+      s("text", { x: legendX + 12, y: 13, class: "tick-label" }, name));
+  });
+  xAxis(svg, x, ticks, baseline, value => `${fmt(value / 1000, 0)}k`, "Median monthly earnings (HKD)");
+
+  industries.forEach(([industry, alias], index) => {
+    const [male, female] = industryPayBySex[year][industry];
+    const gap = male - female;
+    const y = m.top + (index + .5) * rowHeight;
+    const line = s("line", { x1: x(female), x2: x(male), y1: y, y2: y, stroke: "#C5BFBE", "stroke-width": 3 });
+    const femaleDot = s("circle", { cx: x(female), cy: y, r: 6, fill: femaleColor });
+    const maleDot = s("circle", { cx: x(male), cy: y, r: 6, fill: maleColor });
+    tip(femaleDot, `<strong>${industry} · Female · ${year}</strong>HK$${fmt(female)}`);
+    tip(maleDot, `<strong>${industry} · Male · ${year}</strong>HK$${fmt(male)}<br>Gap HK$${fmt(gap)}`);
+    svg.append(line, femaleDot, maleDot,
+      s("text", { x: m.left - 41, y: y + 4, "text-anchor": "end", class: "bar-label" }, alias));
+    // Face the labels outward so equal or close pay values remain readable.
+    const endpoints = [female, male].sort((a, b) => a - b);
+    endpoints.forEach((pay, i) => {
+      svg.appendChild(s("text", {
+        x: x(pay) + (i === 0 ? -8 : 8), y: y + 3,
+        "text-anchor": i === 0 ? "end" : "start", class: "tick-label",
+        style: "font-size: 9px", "pointer-events": "none"
+      }, fmt(pay)));
+    });
+  });
+}
+
+function renderPayTrend() {
+  const { container, svg, width, height } = makeSvg("#pay-trend-chart");
+  const rows = data.overallPayTrend;
+  const years = [...new Set(rows.map(row => row.year))].sort((a, b) => a - b);
+  const byYear = years.map(year => ({
+    year,
+    male: rows.find(row => row.year === year && row.sex === "Male").medianPay,
+    female: rows.find(row => row.year === year && row.sex === "Female").medianPay
+  }));
+  const latest = byYear.at(-1);
+  const gap = latest.male - latest.female;
+  const m = { top: 49, right: 49, bottom: 51, left: 47 };
+  const bottom = height - m.bottom;
+  const right = width - m.right;
+  const x = linear([years[0], latest.year], [m.left, right]);
+  const max = Math.ceil(Math.max(...rows.map(row => row.medianPay)) / 5000) * 5000;
+  const y = linear([0, max], [bottom, m.top]);
+  const yTicks = Array.from({ length: max / 5000 + 1 }, (_, i) => i * 5000);
+  const xTicks = years.filter(year => (year - years[0]) % (width >= 500 ? 5 : 10) === 0);
+  svg.removeAttribute("aria-hidden");
+  svg.setAttribute("role", "group");
+  svg.setAttribute("aria-label", "Median monthly pay and gap over time");
+
+  yGrid(svg, y, yTicks, m.left, right, value => `${value / 1000}k`, "Monthly pay (HKD)");
+  xTicks.forEach(year => {
+    svg.appendChild(s("line", { x1: x(year), x2: x(year), y1: m.top, y2: bottom, class: "grid-line" }));
+  });
+  xAxis(svg, x, xTicks, bottom, String, "Year");
+  const malePoints = byYear.map(row => [x(row.year), y(row.male)]);
+  const femalePoints = byYear.map(row => [x(row.year), y(row.female)]);
+  svg.append(
+    s("path", { d: areaPath(malePoints, femalePoints), fill: "#C5BFBE", opacity: .52 }),
+    s("path", { d: linePath(malePoints), fill: "none", stroke: maleColor, "stroke-width": 3, "stroke-linejoin": "round" }),
+    s("path", { d: linePath(femalePoints), fill: "none", stroke: femaleColor, "stroke-width": 3, "stroke-linejoin": "round" })
+  );
+
+  const summary = s("text", { x: width / 2, y: 15, "text-anchor": "middle", class: "pay-trend-summary" });
+  summary.append(
+    s("tspan", { x: width / 2 }, `Monthly pay gap in ${latest.year}: HK$${fmt(gap)}`),
+    s("tspan", { x: width / 2, dy: 15 }, `Women earned ${fmt(gap / latest.male * 100, 1)}% less`)
+  );
+  svg.appendChild(summary);
+  [["Male", latest.male, maleColor], ["Female", latest.female, femaleColor]].forEach(([sex, pay, color]) => {
+    const label = s("text", { x: right + 6, y: y(pay) - 1, fill: color, class: "pay-trend-end" });
+    label.append(s("tspan", { x: right + 6 }, sex), s("tspan", { x: right + 6, dy: 13 }, fmt(pay)));
+    svg.appendChild(label);
+  });
+
+  const selection = s("g", { "aria-hidden": "true", visibility: "hidden" });
+  const guide = s("line", { y1: m.top, y2: bottom, class: "pay-trend-guide" });
+  const dots = [maleColor, femaleColor].map(color => s("circle", { r: 4, fill: color, stroke: "#fff" }));
+  selection.append(guide, ...dots);
+  const target = s("rect", {
+    x: m.left, y: m.top - 5, width: right - m.left, height: bottom - m.top + 5,
+    fill: "transparent", tabindex: "0", "aria-label": "Explore pay by year with the left and right arrow keys"
+  });
+  svg.append(selection, target);
+
+  const popup = document.createElement("div");
+  popup.className = "pay-trend-popup";
+  popup.hidden = true;
+  container.appendChild(popup);
+  let pinnedIndex = null;
+  let activeIndex = years.length - 1;
+
+  function showYear(index) {
+    activeIndex = index;
+    const { year, male, female } = byYear[index];
+    const position = x(year);
+    guide.setAttribute("x1", position);
+    guide.setAttribute("x2", position);
+    dots.forEach((dot, i) => {
+      dot.setAttribute("cx", position);
+      dot.setAttribute("cy", y(i === 0 ? male : female));
+    });
+    selection.setAttribute("visibility", "visible");
+    popup.innerHTML = `<dl><dt>Year</dt><dd>${year}</dd>
+      <dt>Men’s monthly pay</dt><dd>HK$${fmt(male)}</dd>
+      <dt>Women’s monthly pay</dt><dd>HK$${fmt(female)}</dd>
+      <dt>Monthly pay gap</dt><dd>HK$${fmt(male - female)}</dd></dl>`;
+    popup.hidden = false;
+    const preferred = position + 10 + popup.offsetWidth <= width ? position + 10 : position - popup.offsetWidth - 10;
+    popup.style.left = `${clamp(preferred, 4, width - popup.offsetWidth - 4)}px`;
+    popup.style.top = `${clamp(y(female) + 8, m.top, bottom - popup.offsetHeight - 3)}px`;
+  }
+
+  function clearYear() {
+    selection.setAttribute("visibility", "hidden");
+    popup.hidden = true;
+  }
+
+  function indexAt(event) {
+    const bounds = svg.getBoundingClientRect();
+    const position = (event.clientX - bounds.left) * width / bounds.width;
+    return clamp(Math.round((position - m.left) / (right - m.left) * (years.length - 1)), 0, years.length - 1);
+  }
+
+  container.onYearSelected = year => {
+    const index = years.indexOf(year);
+    if (index >= 0) { pinnedIndex = index; showYear(index); }
+  };
+  target.addEventListener("pointermove", event => {
+    if (pinnedIndex === null) showYear(indexAt(event));
+  });
+  target.addEventListener("pointerleave", () => {
+    if (pinnedIndex === null) clearYear();
+  });
+  function syncIndustryYear(index) {
+    const year = years[index];
+    if (!Object.hasOwn(industryEmploymentBySex, year) || !Object.hasOwn(industryPayBySex, year)) return;
+    const select = $("#gender-employment-year");
+    select.value = year;
+    select.dispatchEvent(new Event("change"));
+  }
+
+  target.addEventListener("click", event => {
+    const index = indexAt(event);
+    pinnedIndex = pinnedIndex === index ? null : index;
+    if (pinnedIndex === null) clearYear();
+    else {
+      syncIndustryYear(index);
+      showYear(index);
+    }
+  });
+  target.addEventListener("keydown", event => {
+    if (event.key === "Escape") {
+      pinnedIndex = null;
+      clearYear();
+    } else if (event.key === "ArrowLeft" || event.key === "ArrowRight") {
+      event.preventDefault();
+      const step = event.key === "ArrowLeft" ? -1 : 1;
+      pinnedIndex = clamp(activeIndex + step, 0, years.length - 1);
+      showYear(pinnedIndex);
+      syncIndustryYear(pinnedIndex);
+    }
+  });
+  target.addEventListener("blur", () => {
+    pinnedIndex = null;
+    clearYear();
+  });
+}
+
+function setRiskYear(year) {
+  $("#risk-year").value = year;
+  renderUnemployment();
+  renderRiskGroup();
+  renderRiskAgeTrend();
+  renderEducationRisk();
+}
+function riskYear() { return +$("#risk-year").value; }
+function crisisYear(name) { return +(name.match(/(2003|2008|2020)/)?.[0] || 0); }
+
+function renderUnemployment() {
+  const { svg, width, height } = makeSvg("#unemployment-chart");
+  const rows = data.unemploymentAnnual;
+  const m = { top: 30, right: 20, bottom: 52, left: 50 };
+  const x = linear([1985, 2025], [m.left, width-m.right]);
+  const y = linear([0, 9], [height-m.bottom, m.top]);
+  yGrid(svg,y,[0,2,4,6,8],m.left,width-m.right,v=>v+"%","Unemployment (%)");
+  xAxis(svg,x,width<400?[1985,2005,2025]:[1985,1995,2005,2015,2025],height-m.bottom,String,"Year");
+  const gradient = s("linearGradient", { id: "unemployment-rate-gradient", gradientUnits: "userSpaceOnUse",
+    x1: 0, x2: 0, y1: y(0), y2: y(9) });
+  gradient.append(s("stop", { offset: "0%", "stop-color": "#E3A9C8" }),
+    s("stop", { offset: "100%", "stop-color": "#51406F" }));
+  const defs = s("defs");
+  defs.appendChild(gradient);
+  svg.append(defs, s("path",{d:linePath(rows.map(d=>[x(d.year),y(d.rate)])),fill:"none",stroke:"url(#unemployment-rate-gradient)","stroke-width":2.5}));
+  const rateColor = rate => {
+    const light = [227,169,200], dark = [81,64,111];
+    return `rgb(${light.map((value,i)=>Math.round(value+(dark[i]-value)*rate/9)).join(",")})`;
+  };
+  [...new Set(data.crisisRecovery.map(d=>d.crisis))].forEach((name,i)=>{
+    const year=crisisYear(name), selected=year===riskYear();
+    const label=s("text",{x:x(year),y:12+(i%2)*13,"text-anchor":"middle",class:"tick-label",style:"cursor:pointer",tabindex:"0",role:"button","aria-label":name},year===2003?"SARS":year===2008?"GFC":"COVID-19");
+    const choose=()=>setRiskYear(year);
+    label.addEventListener("click",choose);
+    label.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();choose();}});
+    svg.append(s("line",{x1:x(year),x2:x(year),y1:m.top,y2:height-m.bottom,stroke:palette[i],"stroke-dasharray":"3 3",opacity:selected?1:.45}),label);
+  });
+  rows.forEach(d=>{
+    const dot=s("circle",{cx:x(d.year),cy:y(d.rate),r:d.year===riskYear()?5:3,fill:rateColor(d.rate),"data-year":d.year,tabindex:"0",role:"button","aria-label":`Select ${d.year}`,style:"cursor:pointer"});
+    const choose=()=>{hideTip();setRiskYear(d.year);};
+    dot.addEventListener("click",choose);
+    dot.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();choose();}});
+    tip(dot,`<strong>${d.year}</strong>${fmt(d.rate,1)}% unemployment<br>Click to compare age groups`);
+    svg.appendChild(dot);
+  });
+}
+
+function renderEducationRisk() {
+  const {svg,width,height}=makeSvg("#education-chart");
+  const groups=[...new Set(riskEducationHistory.map(row=>row.education))];
+  const colors=["#7F74A7","#7C7270","#9B93C9","#DDB5D5","#9C9290","#C5BFBE","#F498B6","#BE6482","#C6C1F0"];
+  const legend=$("#education-legend");
+  legend.replaceChildren(...groups.map((education,i)=>{
+    const item=document.createElement("li"),button=document.createElement("button");
+    button.type="button";
+    button.textContent=education;
+    button.style.setProperty("--education-color",colors[i]);
+    button.setAttribute("aria-pressed",String(selectedRiskEducation===education));
+    button.addEventListener("click",()=>{
+      selectedRiskEducation=selectedRiskEducation===education?null:education;
+      renderEducationRisk();
+    });
+    item.appendChild(button);
+    return item;
+  }));
+  const m={top:18,right:20,bottom:52,left:48};
+  const max=Math.ceil(Math.max(...riskEducationHistory.map(row=>row.rate))/2)*2;
+  const x=linear([1985,2025],[m.left,width-m.right]);
+  const y=linear([0,max],[height-m.bottom,m.top]);
+  yGrid(svg,y,Array.from({length:max/2+1},(_,i)=>i*2),m.left,width-m.right,v=>v+"%","Unemployment (%)");
+  xAxis(svg,x,width<400?[1985,2005,2025]:[1985,1995,2005,2015,2025],height-m.bottom,String,"Year");
+  groups.sort((a,b)=>Number(a===selectedRiskEducation)-Number(b===selectedRiskEducation)).forEach((education)=>{
+    const index=[...new Set(riskEducationHistory.map(row=>row.education))].indexOf(education);
+    const rows=riskEducationHistory.filter(row=>row.education===education).sort((a,b)=>a.year-b.year);
+    const group=s("g",{"data-education":education,opacity:selectedRiskEducation&&selectedRiskEducation!==education?.16:1});
+    rows.forEach((row,i)=>{
+      const previous=rows[i-1];
+      if(previous&&row.year===previous.year+1)group.appendChild(s("line",{x1:x(previous.year),x2:x(row.year),y1:y(previous.rate),y2:y(row.rate),stroke:colors[index],"stroke-width":selectedRiskEducation===education?3:2}));
+      const dot=s("circle",{cx:x(row.year),cy:y(row.rate),r:row.year===riskYear()?4:3,fill:colors[index],"data-year":row.year,role:"button",tabindex:"0","aria-label":`${education}, ${row.year}`,style:"cursor:pointer"});
+      const choose=()=>{hideTip();setRiskYear(row.year);};
+      dot.addEventListener("click",choose);
+      dot.addEventListener("keydown",event=>{if(event.key==="Enter"||event.key===" "){event.preventDefault();choose();}});
+      tip(dot,`<strong>${education}</strong>Year: ${row.year}<br>Unemployment rate: ${fmt(row.rate,1)}%`);
+      group.appendChild(dot);
+    });
+    svg.appendChild(group);
+  });
+  svg.appendChild(s("line",{x1:x(riskYear()),x2:x(riskYear()),y1:m.top,y2:height-m.bottom,stroke:"#857C96","stroke-width":.75,"stroke-dasharray":"3 3","pointer-events":"none"}));
+}
+
+function renderRiskGroup() {
+  const {svg,width,height}=makeSvg("#risk-group-chart");
+  $("#risk-age-year").textContent=riskYear();
+  const rows=riskAgeHistory.filter(d=>d.year===riskYear()).sort((a,b)=>b.rate-a.rate);
+  const m={top:8,right:36,bottom:48,left:64};
+  const max=Math.max(2, Math.ceil(Math.max(...rows.map(d=>d.rate)) * 1.1 / 2) * 2);
+  const x=linear([0,max],[m.left,width-m.right]);
+  const rowHeight=(height-m.top-m.bottom)/rows.length;
+  xAxis(svg,x,[0,max/2,max],height-m.bottom,v=>v+"%","Unemployment rate (%)");
+  rows.forEach((d,i)=>{
+    const center=m.top+(i+.5)*rowHeight;
+    const bar=s("rect",{x:m.left,y:center-7,width:x(d.rate)-m.left,height:14,rx:2,fill:d.age===$("#risk-age").value?"#824A7E":"#EDB1D4",tabindex:"0",role:"button","aria-label":d.age,"data-age":d.age,style:"cursor:pointer"});
+    const choose=()=>{$("#risk-age").value=d.age;hideTip();renderRiskGroup();renderRiskAgeTrend();};
+    bar.addEventListener("click",choose);
+    bar.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();choose();}});
+    tip(bar,`<strong>${d.age} · ${d.year}</strong>${fmt(d.rate,1)}% unemployment`);
+    svg.append(bar,s("text",{x:m.left-7,y:center+4,"text-anchor":"end",class:"bar-label"},d.age),
+      s("text",{x:x(d.rate)+5,y:center+4,class:"tick-label"},fmt(d.rate,1)));
+  });
+}
+
+function renderRiskAgeTrend() {
+  const {svg,width,height}=makeSvg("#risk-age-trend");
+  const ages=[...new Set(riskAgeHistory.map(d=>d.age))];
+  const years=[...new Set(riskAgeHistory.map(d=>d.year))].sort((a,b)=>a-b);
+  const m={top:25,right:10,bottom:45,left:61};
+  const cellWidth=(width-m.left-m.right)/years.length;
+  const cellHeight=(height-m.top-m.bottom)/ages.length;
+  const max=Math.max(...riskAgeHistory.map(d=>d.rate));
+  const shade=rate=>{
+    const amount=rate/max;
+    const light=[242,235,246],dark=[112,65,119];
+    return `rgb(${light.map((v,i)=>Math.round(v+(dark[i]-v)*amount)).join(",")})`;
+  };
+  const gradient=s("linearGradient",{id:"risk-heat-scale"});
+  gradient.append(s("stop",{offset:"0%","stop-color":shade(0)}),s("stop",{offset:"100%","stop-color":shade(max)}));
+  const defs=s("defs");defs.appendChild(gradient);svg.appendChild(defs);
+  svg.append(s("rect",{x:m.left,y:5,width:75,height:7,fill:"url(#risk-heat-scale)"}),
+    s("text",{x:m.left+80,y:12,class:"tick-label"},`0–${fmt(max,1)}% unemployment`));
+  ages.forEach((age,i)=>{
+    svg.appendChild(s("text",{x:m.left-7,y:m.top+(i+.5)*cellHeight+4,"text-anchor":"end",class:"bar-label"},age));
+    years.forEach((year,j)=>{
+      const row=riskAgeHistory.find(d=>d.age===age&&d.year===year);
+      if(!row)return;
+      const selected=year===riskYear()&&age===$("#risk-age").value;
+      const cell=s("rect",{x:m.left+j*cellWidth+.4,y:m.top+i*cellHeight+.4,
+        width:Math.max(.5,cellWidth-.8),height:cellHeight-.8,fill:shade(row.rate),
+        stroke:selected?"#51436E":"none","stroke-width":selected?2:0,
+        tabindex:"0",role:"button","aria-label":`${age}, ${year}, ${fmt(row.rate,1)}%`,
+        "data-year":year,"data-age":age,style:"cursor:pointer"});
+      const choose=()=>{$("#risk-age").value=age;hideTip();setRiskYear(year);};
+      cell.addEventListener("click",choose);
+      cell.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();choose();}});
+      tip(cell,`<strong>${age} · ${year}</strong>${fmt(row.rate,1)}% unemployment`);
+      svg.appendChild(cell);
+    });
+  });
+  [1985,1995,2005,2015,2025].forEach(year=>svg.appendChild(s("text",{
+    x:m.left+(years.indexOf(year)+.5)*cellWidth,y:height-m.bottom+17,
+    "text-anchor":"middle",class:"tick-label"},String(year))));
+  svg.appendChild(s("text",{x:(m.left+width-m.right)/2,y:height-7,"text-anchor":"middle",class:"axis-label"},"Year"));
+}
+
+function fitChartLabels() {
+  $$(".chapter-panel.active .chart svg").forEach(svg => {
+    svg.querySelectorAll('.bar-label[text-anchor="end"]').forEach(label => {
+      if (label.childElementCount) return;
+      const availableWidth = Number(label.getAttribute("x")) - 4;
+      const original = label.textContent;
+      let length = original.length;
+      while (length > 2 && label.getComputedTextLength() > availableWidth) {
+        label.textContent = original.slice(0, --length).trimEnd() + "…";
+      }
+    });
+  });
+}
+
+const renderers={markets:()=>{renderAge();renderMiddleAge();renderUnder35();},structure:()=>{renderTotalEmployment();renderIndustryShare();renderStatus();renderOccupation();},risk:()=>{renderEducationRisk();renderUnemployment();renderRiskGroup();renderRiskAgeTrend();},equity:()=>{renderParticipation();renderGenderEmployment();renderPayTrend();renderPayGap();}};
+function setChapterNavigation(open) {
+  document.body.classList.toggle("nav-collapsed", !open);
+  const toggle = $("#chapter-nav-toggle");
+  toggle.setAttribute("aria-expanded", String(open));
+  toggle.setAttribute("aria-label", open ? "Collapse chapter navigation" : "Expand chapter navigation");
+  toggle.textContent = open ? "‹" : "›";
+  requestAnimationFrame(() => renderers[activeChapter]());
+}
+
+function switchChapter(name,scroll=false){activeChapter=name;$$('[data-chapter]').forEach(b=>{const on=b.dataset.chapter===name;b.classList.toggle("active",on);b.setAttribute("aria-selected",String(on));});$$('[data-panel]').forEach(p=>{const on=p.dataset.panel===name;p.hidden=!on;p.classList.toggle("active",on);});history.replaceState(null,"",`#${name}`);requestAnimationFrame(()=>renderers[name]());if(scroll)$(".chapter-tabs").scrollIntoView({block:"start"});}
+function populateSelects(){const years=[...new Set(data.totalEmployment.map(d=>d.year))].sort((a,b)=>b-a),year=$("#composition-year");years.forEach(v=>{const option=new Option(v,v);option.disabled=!data.employmentStatus.some(row=>row.year===v)||!data.occupationMix.some(row=>row.year===v);year.add(option);});year.value=years[0];}
+function setupIndustryYear() {
+  const select = $("#gender-employment-year");
+  const years = Object.keys(industryEmploymentBySex)
+    .filter(year => Object.hasOwn(industryPayBySex, year))
+    .sort((a, b) => b - a);
+  years.forEach(year => select.add(new Option(year, year)));
+  select.addEventListener("change", () => {
+    renderGenderEmployment();
+    renderPayGap();
+    renderParticipation();
+    $("#pay-trend-chart").dispatchEvent(new CustomEvent("yearselected", { detail: +select.value }));
+  });
+}
+
+function setupParticipationControls() {
+  const play = $("#participation-play");
+  const stop = () => {
+    clearInterval(participationTimer);
+    participationTimer = null;
+    play.textContent = "Play";
+  };
+  $("#participation-mode").addEventListener("change", () => { stop(); renderParticipation(); });
+  play.addEventListener("click", () => {
+    if (participationTimer) { stop(); return; }
+    const select = $("#gender-employment-year");
+    const years = [...select.options].map(option => +option.value).sort((a,b) => a-b);
+    const advance = () => {
+      const index = years.indexOf(+select.value);
+      if (index === years.length - 1) { stop(); return; }
+      select.value = years[index + 1];
+      select.dispatchEvent(new Event("change"));
+    };
+    if (+select.value === years.at(-1)) {
+      select.value = years[0];
+      select.dispatchEvent(new Event("change"));
+    }
+    play.textContent = "Pause";
+    participationTimer = setInterval(advance, 1000);
+  });
+  $("#pay-trend-chart").addEventListener("yearselected", event => {
+    $("#pay-trend-chart").onYearSelected?.(event.detail);
+  });
+  document.addEventListener("visibilitychange", () => { if (document.hidden) stop(); });
+  $$("[data-chapter]").forEach(button => button.addEventListener("click", stop));
+}
+
+function setupRiskControls() {
+  [...new Set(riskAgeHistory.map(d=>d.year))].sort((a,b)=>b-a).forEach(year=>$("#risk-year").add(new Option(year,year)));
+  [...new Set(riskAgeHistory.map(d=>d.age))].forEach(age=>$("#risk-age").add(new Option(age,age)));
+  $("#risk-age").value="15 - 19";
+}
+
+function setup(){$("#chapter-nav-toggle").addEventListener("click",()=>setChapterNavigation(document.body.classList.contains("nav-collapsed")));setupRiskControls();$$("[data-market-period]").forEach(button => button.addEventListener("click", () => {
+  selectedMarketPeriod = button.dataset.marketPeriod;
+  $$("[data-market-period]").forEach(item => item.setAttribute("aria-pressed", String(item === button)));
+  hideTip();
+  renderUnder35();
+}));populateSelects();setupIndustryYear();setupParticipationControls();$$('[data-chapter]').forEach(b=>b.addEventListener("click",()=>{switchChapter(b.dataset.chapter);if(desktopDashboard())setChapterNavigation(false);}));$("#industry-share-reset").addEventListener("click",()=>{selectedIndustryShare=null;renderIndustryShare();});$("#composition-year").addEventListener("change",()=>renderers.structure());$("#risk-year").addEventListener("change",()=>setRiskYear(riskYear()));$("#risk-age").addEventListener("change",()=>{renderRiskGroup();renderRiskAgeTrend();});const hash=location.hash.replace("#","");if(Object.hasOwn(renderers,hash))activeChapter=hash;switchChapter(activeChapter);let timer;addEventListener("resize",()=>{clearTimeout(timer);timer=setTimeout(()=>renderers[activeChapter](),160);});}
+
+const industryEmploymentRequest = fetch("data/industry-employment-by-sex.json")
+  .then(response => response.json())
+  .then(json => json.years)
+  .catch(error => {
+    console.warn("Industry employment history could not be loaded.", error);
+    return null;
+  });
+
+const industryPayRequest = fetch("data/industry-pay-by-sex.json")
+  .then(response => response.json())
+  .then(json => json.years)
+  .catch(error => {
+    console.warn("Industry pay history could not be loaded.", error);
+    return null;
+  });
+
+Promise.all([fetch("data/data.json?v=2").then(response => response.json()), industryEmploymentRequest, industryPayRequest, fetch("data/participation-by-year.json").then(response => response.json()).then(json => json.rows).catch(() => []), fetch("data/risk-age-history.json").then(response => response.json()), fetch("data/risk-education-history.json").then(response => response.json())])
+  .then(([dashboardData, employmentHistory, payHistory, participationRows, riskRows, educationRows]) => {
+    riskEducationHistory = educationRows;
+    riskAgeHistory = riskRows;
+    participationHistory = participationRows.length ? participationRows : dashboardData.participationByAgeSex;
+    data = dashboardData;
+    industryEmploymentBySex = employmentHistory ?? {
+      2025: Object.fromEntries(genderGroups().map(row => [row.industry, [row.male.employment, row.female.employment]]))
+    };
+    industryPayBySex = payHistory ?? {
+      2025: Object.fromEntries(genderGroups().map(row => [row.industry, [row.male.pay, row.female.pay]]))
+    };
+    setup();
+  }).catch(error=>{console.error(error);document.body.insertAdjacentHTML("beforeend",'<p style="padding:40px">Data could not be loaded.</p>');});

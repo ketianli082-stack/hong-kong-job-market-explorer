@@ -19,3 +19,329 @@ svg{display:block;width:100%;height:100%;overflow:visible}.axis-label,.tick-labe
 @media(max-width:1050px){.employment-overview,.composition-grid{grid-template-columns:1fr 1fr}.comparison-cards,.comparison-cards[data-count="4"]{grid-template-columns:repeat(2,minmax(0,1fr))}.priority-grid{grid-template-columns:1fr 1fr}.priority-grid>*:last-child{grid-column:1/-1}}
 @media(max-width:760px){.topbar{padding:0 17px}.brand span:last-child{display:none}.topbar nav{gap:18px}.compact-intro{min-height:78px;padding:18px 18px 15px}.compact-intro h1{font-size:32px}.story-workspace{padding:0 12px 24px}.chapter-tabs{overflow-x:auto;grid-template-columns:repeat(4,minmax(115px,1fr))}.chapter-panel{padding-top:17px}.chapter-heading h2{font-size:27px}.two-columns,.equal-grid,.employment-overview,.composition-grid,.risk-grid{grid-template-columns:1fr}.full{grid-column:1}.viz-card{padding:12px}.viz-heading{display:flex}.chapter-heading p{font-size:13px}.subsection-heading{align-items:center}.composition-grid{display:grid}.preferences-section,.results-section,.comparison-section,.detail-section,.budget-section{padding:19px 16px 22px}.priority-grid{grid-template-columns:1fr}.priority-grid>*:last-child{grid-column:auto}.results-controls{align-items:flex-start;flex-direction:column}.comparison-cards,.comparison-cards[data-count="1"],.comparison-cards[data-count="2"],.comparison-cards[data-count="4"]{grid-template-columns:1fr}.budget-layout{grid-template-columns:1fr}.budget-waterfall{gap:7px;padding:10px 8px 0}.section-title-row h2{font-size:26px}.compact-field,.offer-field{min-width:0;max-width:none}.chart-legend-item text{font-size:9px}}
 @media(prefers-reduced-motion:reduce){*,*:before,*:after{scroll-behavior:auto!important;transition-duration:.01ms!important}}
+
+/* Explore typography and chart surfaces */
+.explore-page {
+  --page: #F7F6FA;
+  --purple: #62568C;
+  --line: #E5E0EB;
+  --font: Inter, system-ui, sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+.explore-page .compact-intro h1,
+.explore-page .chapter-heading h2 { font-family: Manrope, Inter, system-ui, sans-serif; }
+.explore-page .compact-intro h1 { font-size: clamp(30px, 4.4vw, 44px); }
+.explore-page .chapter-heading h2 { font-size: clamp(28px, 3vw, 32px); }
+.explore-page .chapter-heading > span {
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: .05em;
+}
+.explore-page .chapter-tabs {
+  gap: 4px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+.explore-page .chapter-tabs button {
+  border: 0;
+  border-radius: 8px 8px 0 0;
+  line-height: 1.25;
+  padding-inline: 4px;
+}
+.explore-page .chapter-tabs button span { color: var(--muted); }
+.explore-page .chapter-tabs button.active {
+  color: var(--purple);
+  background: #EEE9F6;
+  box-shadow: inset 0 -2px var(--purple);
+}
+.explore-page .viz-card {
+  min-width: 0;
+  border-color: #EBE7EF;
+  border-radius: 12px;
+  box-shadow: 0 3px 14px rgba(58, 43, 77, .05);
+}
+.explore-page .viz-card.primary-viz {
+  background: #F2EEF8;
+  border-color: #E6DEEF;
+}
+.explore-page .viz-heading { align-items: flex-start; gap: 8px; }
+.explore-page .viz-heading h3 { font-size: 16px; }
+.explore-page .viz-heading label { min-width: 0; }
+.explore-page .viz-heading select { min-width: 0; max-width: 100%; }
+.explore-page .viz-heading p,
+.explore-page .viz-heading select { font-size: 13px; }
+.explore-page .chart svg { overflow: hidden; }
+.explore-page .tick-label,
+.explore-page .bar-label,
+.explore-page .axis-label,
+.explore-page .direct-label { font-size: 11.5px; }
+.explore-page .donut-caption { fill: #282D33; }
+.explore-page .grid-line { stroke: #E1DAE8; }
+.explore-page .axis-line { stroke: #C5BFBE; }
+.explore-page .heat-label,
+.explore-page .heat-value { pointer-events: none; }
+.explore-page .chart-mark { transition: opacity 140ms ease; }
+.explore-page svg:has(.chart-mark:hover) .chart-mark:not(:hover) { opacity: .38; }
+.explore-page .tooltip { max-width: min(320px, calc(100vw - 16px)); }
+
+@media (max-width: 600px) {
+  .explore-page .chapter-tabs button strong { font-size: 11px; }
+  .explore-page .viz-heading > span { white-space: normal; text-align: right; }
+  .explore-page .risk-grid .viz-heading { flex-wrap: wrap; }
+}
+
+/* Find Your Fit industry filters */
+.multi-select-toggle {
+  position: relative;
+  padding-block: 7px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+.multi-select-toggle::after { top: 50%; transform: translateY(-50%); }
+.multi-select-menu { top: calc(100% + 4px); right: auto; z-index: 80; }
+.multi-select-menu[hidden] { display: none; }
+.multi-select-menu .multi-option {
+  display: flex;
+  color: #282234;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.multi-select-menu .multi-option input { width: auto; flex: none; margin: 2px 0 0; }
+.multi-option span { min-width: 0; overflow-wrap: anywhere; }
+.multi-option:has(input:checked) { background: #EEE9F6; }
+.multi-actions {
+  position: sticky;
+  top: -5px;
+  display: flex;
+  gap: 8px;
+  padding: 6px;
+  background: #fff;
+  border-bottom: 1px solid #E5E0EB;
+}
+.multi-actions button {
+  padding: 5px 9px;
+  border: 1px solid #E5E0EB;
+  border-radius: 5px;
+  background: #F7F6FA;
+  color: #51436E;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.participation-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin: 0 0 8px;
+  padding: 0;
+  line-height: 18px;
+  list-style: none;
+  color: var(--ink);
+  font-size: 12px;
+}
+.participation-legend li {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.participation-legend li::before {
+  content: "";
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--year-color);
+}
+
+.participation-legend li { cursor: default; }
+
+/* Keep the hover year ahead of any year focused via the keyboard. */
+.viz-card:has(.participation-legend li[data-year="1985"]:hover) #participation-chart circle:not([data-year="1985"]),
+.viz-card:has(.participation-legend li[data-year="2005"]:hover) #participation-chart circle:not([data-year="2005"]),
+.viz-card:has(.participation-legend li[data-year="2025"]:hover) #participation-chart circle:not([data-year="2025"]),
+.viz-card:has(.participation-legend li[data-year="1985"]:focus-visible):not(:has(.participation-legend li:hover)) #participation-chart circle:not([data-year="1985"]),
+.viz-card:has(.participation-legend li[data-year="2005"]:focus-visible):not(:has(.participation-legend li:hover)) #participation-chart circle:not([data-year="2005"]),
+.viz-card:has(.participation-legend li[data-year="2025"]:focus-visible):not(:has(.participation-legend li:hover)) #participation-chart circle:not([data-year="2025"]) {
+  opacity: .22;
+}
+
+.pay-trend-chart { position: relative; }
+.pay-trend-summary {
+  fill: var(--ink);
+  font-size: 11px;
+  font-style: italic;
+  font-weight: 700;
+}
+.pay-trend-end { font-size: 10.5px; font-weight: 700; }
+.pay-trend-guide { stroke: #7C7270; stroke-dasharray: 3 3; }
+.pay-trend-popup {
+  position: absolute;
+  z-index: 1;
+  max-width: calc(100% - 8px);
+  padding: 8px 10px;
+  border: 1px solid #DED8E5;
+  border-radius: 5px;
+  background: #fff;
+  box-shadow: 0 3px 9px rgba(58, 43, 77, .16);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1.45;
+  pointer-events: none;
+}
+.pay-trend-popup dl {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 2px 10px;
+  margin: 0;
+}
+.pay-trend-popup dd {
+  margin: 0;
+  color: var(--ink);
+  font-weight: 700;
+  text-align: right;
+}
+
+.participation-controls { display: flex; align-items: baseline; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; font-size: 12px; }
+.participation-controls button { padding: 5px 10px; border: 1px solid #DED8E5; border-radius: 5px; background: #F7F6FA; color: #51436E; cursor: pointer; }
+.participation-controls span { font-weight: 700; color: #62568C; }
+
+.participation-controls .participation-play-range { font-size: 10px; font-weight: 400; }
+
+.participation-heading > div:first-child { flex: 1 1 190px; }
+.participation-heading { flex-wrap: wrap; }
+.participation-heading .participation-controls {
+  flex: 0 1 242px;
+  justify-content: flex-end;
+  margin: 0;
+  gap: 5px 8px;
+}
+.participation-heading .participation-controls label { width: 100%; justify-content: flex-end; }
+.participation-heading .participation-controls select { width: 210px; padding-right: 26px; }
+@media (max-width: 600px) {
+  .participation-heading .participation-controls { flex-basis: 100%; justify-content: flex-start; }
+  .participation-heading .participation-controls label { width: auto; justify-content: flex-start; }
+}
+
+.participation-toolbar { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; min-height: 30px; }
+.participation-toolbar .participation-legend { margin: 0; gap: 6px 12px; }
+.participation-playback { display: flex; align-items: baseline; gap: 8px; margin-left: auto; font-size: 12px; }
+.participation-playback button { padding: 4px 9px; border: 1px solid #DED8E5; border-radius: 5px; background: #F7F6FA; color: #51436E; cursor: pointer; }
+.participation-playback .participation-play-range { font-size: 10px; font-weight: 400; color: #62568C; }
+.participation-playback #participation-selected-year { font-weight: 700; color: #62568C; }
+.participation-heading .participation-controls label { width: auto; }
+@media (max-width: 600px) {
+  .participation-toolbar { flex-wrap: wrap; }
+}
+
+#chapter-markets .viz-heading label { flex-wrap: wrap; }
+
+.market-period-buttons { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+.market-period-buttons button { padding: 6px 9px; border: 1px solid #DED8E5; border-radius: 6px; background: #fff; color: #62568C; font: inherit; font-size: 12px; cursor: pointer; }
+.market-period-buttons button[aria-pressed="true"] { background: #EEE9F6; border-color: #A696C4; }
+@media (max-width: 760px) {
+  #chapter-markets .viz-heading:has(.market-period-buttons) { flex-wrap: wrap; }
+  .market-period-buttons { justify-content: flex-start; }
+}
+
+.education-legend { display: flex; flex-wrap: wrap; gap: 1px 8px; margin: 0 0 6px; padding: 0; list-style: none; }
+.education-legend button { display: flex; align-items: center; gap: 5px; border: 0; border-radius: 4px; padding: 3px; color: var(--muted); background: transparent; font: inherit; font-size: 10px; line-height: 1.2; text-align: left; cursor: pointer; }
+.education-legend button::before { content: ""; flex: none; width: 7px; height: 7px; border-radius: 2px; background: var(--education-color); }
+.education-legend button[aria-pressed="true"] { background: #EEE9F6; color: var(--ink); }
+
+.education-chart-compact { height: 240px; }
+
+.annual-unemployment-card { display: flex; flex-direction: column; }
+.annual-unemployment-card .chart { flex: 1 0 250px; min-height: 250px; }
+
+/* Desktop dashboard occupies the available viewport. */
+@media (min-width: 900px) and (min-height: 600px) {
+  .explore-page { height: 100dvh; }
+  .explore-page .topbar { height: 44px; padding: 0 20px; }
+  .explore-page .topbar nav a.active::after { bottom: -12px; }
+  .explore-page main { height: calc(100dvh - 44px); display: flex; flex-direction: column; }
+  .explore-page .compact-intro { min-height: 0; width: 100%; max-width: none; padding: 10px 20px; flex: none; }
+  .explore-page .compact-intro h1 { font-size: 26px; }
+  .explore-page .story-workspace { display: grid; grid-template-columns: 108px minmax(0,1fr); gap: 10px; flex: 1; min-height: 0; width: 100%; max-width: none; padding: 10px 16px 12px; }
+  .explore-page .chapter-tabs { position: static; display: flex; flex-direction: column; gap: 6px; border: 0; padding-top: 4px; }
+  .explore-page .chapter-tabs button { min-height: 65px; align-items: flex-start; text-align: left; padding: 8px; border-radius: 8px; }
+  .explore-page .chapter-tabs button.active { box-shadow: inset 3px 0 var(--purple); }
+  .explore-page .chapter-tabs button strong { font-size: 12px; }
+  .explore-page .chapter-panel { display: flex; flex-direction: column; min-height: 0; padding-top: 0; }
+  .explore-page .chapter-heading { margin-bottom: 9px; flex: none; }
+  .explore-page .chapter-heading > span { font-size: 11px; margin-bottom: 3px; }
+  .explore-page .chapter-heading h2 { font-size: 23px; }
+  .explore-page .chapter-heading p { margin-top: 4px; font-size: 12px; }
+  .explore-page .dashboard-grid { min-height: 0; gap: 9px; }
+  .explore-page .chapter-panel > .dashboard-grid { flex: 1; grid-template-rows: repeat(2,minmax(0,1fr)); }
+  .explore-page #chapter-structure > .dashboard-grid { flex: 1; grid-template-rows: minmax(0,1fr); }
+  .explore-page .employment-overview,.explore-page .composition-grid { grid-template-columns: minmax(0,1fr) minmax(0,1.35fr); }
+  .explore-page .composition-section { flex: 1; display: flex; flex-direction: column; min-height: 0; margin-top: 9px; }
+  .explore-page .composition-grid { flex: 1; min-height: 0; gap: 9px; }
+  .explore-page .subsection-heading { min-height: 34px; padding-bottom: 4px; flex: none; }
+  .explore-page .subsection-heading h3 { font-size: 13px; }
+  .explore-page .subsection-heading p { display: none; }
+  .explore-page .viz-card { display: flex; flex-direction: column; min-height: 0; padding: 9px 11px; }
+  .explore-page .viz-heading { flex: none; min-height: 34px; margin-bottom: 4px; gap: 6px; }
+  .explore-page .viz-heading h3 { font-size: 14px; }
+  .explore-page .viz-heading p { font-size: 11px; }
+  .explore-page .viz-heading select { font-size: 11px; min-height: 28px; }
+  .explore-page .viz-card > .chart { flex: 1 1 0; height: 0; min-height: 0; }
+  .explore-page .compact-decision { flex: none; min-height: 29px; margin-top: 7px; padding: 4px 10px; }
+  .explore-page .compact-decision p,.explore-page .compact-decision a { font-size: 11px; }
+  .explore-page .education-legend { gap: 0 6px; margin-bottom: 2px; }
+  .explore-page .education-legend button { font-size: 9px; padding: 1px; }
+  .explore-page .participation-heading > div:first-child { flex-basis: 150px; }
+  .explore-page .participation-heading .participation-controls { flex-basis: 210px; }
+  .explore-page .participation-heading .participation-controls select { width: 180px; }
+  .explore-page .participation-toolbar { min-height: 26px; }
+  .explore-page .participation-legend { font-size: 10px; }
+  .explore-page .market-period-buttons button { font-size: 10px; padding: 4px 6px; }
+}
+
+@media (min-width: 900px) and (min-height: 600px) {
+  .explore-page .compact-intro { padding: 6px 16px; }
+  .explore-page .compact-intro h1 { font-size: 22px; }
+  .explore-page .chapter-heading {
+    display: flex;
+    align-items: baseline;
+    flex-wrap: wrap;
+    gap: 3px 12px;
+    margin-bottom: 7px;
+  }
+  .explore-page .chapter-heading > span { margin: 0; font-size: 10px; }
+  .explore-page .chapter-heading h2 { font-size: 19px; line-height: 1.2; }
+  .explore-page .chapter-heading p { max-width: none; margin: 0; font-size: 11px; }
+}
+
+.chapter-nav-toggle { display: none; }
+@media (min-width: 900px) and (min-height: 600px) {
+  .explore-page .story-workspace { position: relative; }
+  .chapter-nav-toggle {
+    display: block;
+    position: absolute;
+    z-index: 45;
+    left: 0;
+    top: 50%;
+    width: 18px;
+    height: 52px;
+    padding: 0;
+    border: 1px solid #DED8E5;
+    border-left: 0;
+    border-radius: 0 7px 7px 0;
+    background: #EEE9F6;
+    color: #62568C;
+    font-size: 23px;
+    cursor: pointer;
+  }
+  .explore-page.nav-collapsed .story-workspace { grid-template-columns: minmax(0,1fr); padding-left: 26px; }
+  .explore-page.nav-collapsed .chapter-tabs { display: none; }
+}
+
+.explore-page .viz-heading { padding-inline: 8px; padding-top: 4px; }
+
+.viz-heading:has(.industry-share-controls) { flex-wrap: wrap; }
+.viz-heading:has(.industry-share-controls) > div:first-child { flex: 1 1 180px; }
+.industry-share-controls { flex: 1.6 1 285px; }
+.industry-share-legend { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 2px 7px; }
+.industry-share-legend button { display: flex; align-items: center; gap: 4px; border: 0; border-radius: 3px; background: transparent; padding: 1px 0; color: var(--muted); font: inherit; font-size: 10px; text-align: left; cursor: pointer; }
+.industry-share-legend button::before { content: ""; width: 8px; height: 8px; flex: none; border-radius: 2px; background: var(--industry-color); }
+.industry-share-legend button[aria-pressed="true"] { color: var(--ink); font-weight: 700; }
+.industry-share-controls .chart-action { padding: 2px 6px; font-size: 10px; margin-top: 3px; }
