@@ -516,7 +516,7 @@
     $("#hours-range-viz").innerHTML = intervals(matched, "hours");
     document.querySelectorAll("[data-year-label]").forEach(element => element.textContent = state.payYear);
     $("#budget-industry").textContent = featured?.name || "";
-    $("#budget-surplus").textContent = money(featured?.surplus ?? 0) + " surplus";
+    $("#budget-surplus").innerHTML = esc(money(featured?.surplus ?? 0)) + " <span>surplus</span>";
     drawMap(chosen);
     drawOccupation(chosen);
     drawBudget(featured);
