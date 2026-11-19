@@ -394,8 +394,8 @@
       const current = fitContext();
       const selected = !state.focus || current.featured?.id === row.id;
       const tip = row.name + " · " + quarterLabel(row.period)
-        + "\\nVacancy rate " + percent(row.rate * 100) + " · " + number(row.openings) + " vacancies"
-        + "\\nEmployment YoY " + percent(row.yoy * 100);
+        + "\nVacancy rate " + percent(row.rate * 100) + " · " + number(row.openings) + " vacancies"
+        + "\nEmployment YoY " + percent(row.yoy * 100);
       const radius = Math.max(4, Math.sqrt(Math.max(0,row.openings) / max) * 19);
       content += `<circle cx="${axis.x(row.rate*100)}" cy="${axis.y(row.yoy*100)}" r="${radius}" fill="${row.yoy >= 0 ? "#62568C" : "#D7647D"}"
         opacity="${selected ? .86 : .22}" class="ff-bubble" data-tip="${esc(tip)}" data-action="bubble"
@@ -585,6 +585,7 @@
     updateSliderLimits();
     $("#match-total").textContent = String(matched.length);
     $("#ff-adjustment").textContent = state.adjustment;
+    document.querySelector(".ff-dashboard-charts")?.style.setProperty("--fit-list-min-height", Math.max(370, matched.length * 26 + 98) + "px");
     $("#pay-range-viz").innerHTML = intervals(matched, "pay");
     $("#hours-range-viz").innerHTML = intervals(matched, "hours");
     document.querySelectorAll("[data-year-label]").forEach(element => element.textContent = state.payYear);
