@@ -212,7 +212,7 @@
     input.style.setProperty("--range-progress", percent + "%");
   }
   function quarterLabel(period) {
-    return period ? period.replace(/^(\\d{4})Q([1-4])$/, "$1 Q$2") : "—";
+    return period ? period.replace(/^(\d{4})Q([1-4])$/, "$1 Q$2") : "—";
   }
   function updateQuarterUI() {
     const slider = $("#quarter-slider");
