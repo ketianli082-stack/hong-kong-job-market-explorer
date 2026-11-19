@@ -6,7 +6,7 @@
   <meta name="description" content="Interactive exploration of Hong Kong employment, pay and labour-market risk.">
   <title>Hong Kong Job Market Explorer</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..800&amp;family=Manrope:wght@600..800&amp;display=swap">
-  <link rel="stylesheet" href="styles.css?v=35">
+  <link rel="stylesheet" href="styles.css?v=36">
 </head>
 <body class="explore-page">
   <header class="topbar">
@@ -14,7 +14,26 @@
     <nav aria-label="Primary navigation"><a class="active" href="index.html">Explore</a><a href="fit.html">Find Your Fit</a></nav><div class="language-toggle" role="group" aria-label="Language / 语言"><button type="button" data-lang="en" aria-pressed="true">EN</button><button type="button" data-lang="zh" aria-pressed="false">中文</button></div>
   </header>
   <main>
-    <section class="story-workspace" aria-label="Hong Kong job market story">
+
+    <section class="landing-hero" id="landing" aria-label="Introduction to Hong Kong job market">
+      <div class="landing-content">
+        <div class="landing-kicker">HONG KONG JOB MARKET · DATA STORY</div>
+        <h1>Explore the market.<br><em>Shape your future.</em></h1>
+        <p>From employment structure to job security and pay — understand the evidence behind career decisions in Hong Kong.</p>
+        <div class="landing-chapters" aria-label="Three story chapters">
+          <span>01 <strong>Employment Structure</strong></span>
+          <span>02 <strong>Risk &amp; Resilience</strong></span>
+          <span>03 <strong>Gender &amp; Pay</strong></span>
+        </div>
+        <a class="landing-start" id="start-exploring" href="#structure">Start Exploring <span aria-hidden="true">↓</span></a>
+      </div>
+      <div class="landing-image-wrap">
+        <img class="landing-photo" src="assets/harbour.webp" alt="Illustrated sunset skyline across Hong Kong's Victoria Harbour" fetchpriority="high">
+        <span class="landing-image-label">VICTORIA HARBOUR · HONG KONG</span>
+      </div>
+      <span class="landing-scroll-hint" aria-hidden="true">SCROLL TO EXPLORE ↓</span>
+    </section>
+    <section class="story-workspace" id="story" aria-label="Hong Kong job market story">
       <div id="chapter-navigation" class="chapter-tabs" role="tablist" aria-label="Story chapters">
         <button class="active" role="tab" aria-selected="true" id="tab-structure" aria-controls="chapter-structure" data-chapter="structure"><span>01</span><strong>Employment Structure</strong></button>
         <button role="tab" aria-selected="false" id="tab-risk" aria-controls="chapter-risk" data-chapter="risk"><span>02</span><strong>Risk &amp; Resilience</strong></button>
@@ -46,7 +65,7 @@
       <section class="chapter-panel" id="chapter-equity" data-panel="equity" role="tabpanel" aria-labelledby="tab-equity" hidden>
         <header class="chapter-heading"><span>03 · GENDER &amp; PAY</span><h2>Who Benefits from the Market</h2><p>Participation, representation and pay reveal different dimensions of inequality.</p></header>
         <div class="dashboard-grid two-columns">
-          <figure class="viz-card"><div class="viz-heading"><div><h3>Median pay over time</h3><p>HKD per month</p></div><span>1985–2025</span></div><div id="pay-trend-chart" class="chart h-300 pay-trend-chart"></div></figure>
+          <figure class="viz-card"><div class="viz-heading"><div><h3>Median pay over time</h3><p>HKD per month · 1985–2025</p></div><label class="year-slider">Year <input type="range" id="gender-employment-year" aria-controls="pay-trend-chart gender-employment-chart pay-gap-chart" min="2008" max="2025" step="1" value="2025"><output for="gender-employment-year">2025</output></label></div><div id="pay-trend-chart" class="chart h-300 pay-trend-chart"></div></figure>
           <figure class="viz-card primary-viz"><div class="viz-heading"><div><h3>Median monthly pay by industry</h3><p>HKD per month</p></div><span id="industry-pay-year-label"></span></div><div id="pay-gap-chart" class="chart h-300"></div></figure>
           <figure class="viz-card">
             <div class="viz-heading participation-heading"><div><h3>Participation by age and sex</h3><p>Labour-force participation rate (%)</p></div>
@@ -54,14 +73,14 @@
             <div class="participation-toolbar"><ul id="participation-legend" class="participation-legend" aria-label="Years"></ul><div class="participation-playback"><button type="button" id="participation-play">Play</button><span class="participation-play-range">2008–2025</span><span id="participation-selected-year" aria-live="polite"></span></div></div>
             <div id="participation-chart" class="chart" role="img" aria-label="Labour-force participation rates for men and women by age group in 1985, 2005 and 2025"></div>
           </figure>
-          <figure class="viz-card"><div class="viz-heading"><div><h3>Employment by industry and sex</h3><p>Share within each industry (%)</p></div><label class="year-slider">Year <input type="range" id="gender-employment-year" aria-controls="gender-employment-chart pay-gap-chart" min="2008" max="2025" step="1" value="2025"><output for="gender-employment-year">2025</output></label></div><div id="gender-employment-chart" class="chart h-280"></div></figure>
+          <figure class="viz-card"><div class="viz-heading"><div><h3>Employment by industry and sex</h3><p>Share within each industry (%)</p></div></div><div id="gender-employment-chart" class="chart h-280"></div></figure>
         </div>
         <div class="decision-strip compact-decision"><p>Turn market evidence into a personal shortlist.</p><a href="fit.html">Find Your Fit →</a></div>
       </section>
     </section>
   </main>
   <div id="tooltip" class="tooltip" role="status" aria-live="polite"></div>
-  <script src="i18n.js?v=4" defer></script>
-  <script src="app.js?v=54" defer></script>
+  <script src="i18n.js?v=5" defer></script>
+  <script src="app.js?v=55" defer></script>
 </body>
 </html>
