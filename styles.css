@@ -536,7 +536,7 @@ html[lang="zh-CN"] .ff-field { line-height: 1.55; }
   .explore-page .chapter-tabs button { min-height: 70px; padding: 10px 9px; }
   .explore-page .chapter-tabs button strong { font-size: 12px; line-height: 1.35; }
   .explore-page .chapter-nav-toggle { display: none !important; }
-  .explore-page #chapter-risk .risk-grid > figure:nth-child(3) { grid-column: 1 / -1; }
+  .explore-page #chapter-risk .risk-grid > figure:nth-of-type(3) { grid-column: 1 / -1; }
 }
 .explore-page .year-slider {
   display: inline-flex; align-items: center; gap: 7px; min-width: 175px;
@@ -546,7 +546,7 @@ html[lang="zh-CN"] .ff-field { line-height: 1.55; }
 .explore-page .year-slider output { min-width: 36px; font-weight: 750; color: #62568c; font-variant-numeric: tabular-nums; text-align: right; }
 .explore-page #chapter-risk .risk-grid > figure:nth-child(3) .chart { min-height: 0; }
 @media (max-width: 899px) {
-  .explore-page .risk-grid > figure:nth-child(3) { grid-column: auto; }
+  .explore-page .risk-grid > figure:nth-of-type(3) { grid-column: auto; }
 }
 
 /* Find Your Fit: dense, coordinated dashboard with local scrolling only. */
