@@ -2,7 +2,9 @@
 
 这是一个基于 Tableau 工作簿数据制作的英文交互式就业市场网站。
 
-- [在线预览](https://hong-kong-job-market-explorer.ketianli082.chatgpt.site)
+- [在线预览（跟随 main 最新版本）](https://raw.githack.com/ketianli082-stack/hong-kong-job-market-explorer/main/index.html)
+
+> 预览由第三方 raw.githack.com 提供，通常会在 GitHub 更新后数分钟内刷新；仓库尚未启用 GitHub Pages。
 - Page 01 — Explore：香港就业市场数据故事
 - Page 02 — Find Your Fit：求职选择与行业比较工具
 
