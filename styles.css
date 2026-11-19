@@ -882,3 +882,40 @@ input[type="range"]:focus-visible { outline:2px solid #8074A8; outline-offset:5p
     left:0; right:auto; bottom:calc(100% + 9px);
   }
 }
+
+
+/* Budget card V3: remove the oversized left summary tile and give the
+   waterfall the entire horizontal drawing area. */
+.ff-dashboard-charts { grid-template-rows:minmax(0,1fr) minmax(190px,.52fr); }
+.ff-dashboard-charts .ff-chart-budget { display:flex; flex-direction:column; gap:0; }
+.ff-dashboard-charts .ff-chart-budget .ff-budget-head { flex:0 0 auto; margin:0; padding:0 2px; }
+.ff-dashboard-charts .ff-chart-budget .ff-budget-result-line {
+  flex:0 0 auto; display:flex; flex-direction:row; justify-content:space-between; align-items:center;
+  flex-wrap:wrap; min-height:38px; margin:4px 0 5px; padding:5px 8px;
+  border-top:1px solid #EEE9F3; border-bottom:1px solid #EEE9F3; gap:6px 20px;
+}
+.ff-budget-result-line .ff-budget-industry { display:flex; align-items:baseline; gap:9px; min-width:0; max-width:66%; }
+.ff-budget-result-line .ff-budget-overline,
+.ff-budget-result-line .ff-budget-takehome span { color:#837A8D; font-size:10px; white-space:nowrap; }
+.ff-budget-result-line #budget-industry { color:#665777; font-size:12px; font-weight:710; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ff-budget-result-line .ff-budget-takehome { display:flex; align-items:baseline; gap:10px; flex:none; }
+.ff-budget-result-line #budget-surplus { font-size:18px; color:#66588C; font-weight:800; font-variant-numeric:tabular-nums; line-height:1.2; }
+.ff-budget-result-line #budget-surplus.ff-budget-negative { color:#B95C73; }
+.ff-dashboard-charts .ff-chart-budget .ff-budget-viz {
+  flex:1 1 auto; display:block; min-height:0; width:100%; height:auto; overflow:hidden;
+}
+.ff-dashboard-charts .ff-chart-budget .ff-budget-viz svg {
+  display:block; width:100%; height:100%; max-height:none; overflow:hidden;
+}
+.ff-quarter-meta { justify-content:space-between; }
+@media(max-width:1100px), (max-height:710px) {
+  .ff-dashboard-charts { grid-template-rows:minmax(340px,auto) minmax(200px,auto); }
+  .ff-chart-budget { min-height:205px; }
+}
+@media(max-width:699px) {
+  .ff-dashboard-charts .ff-chart-budget { min-height:250px!important; }
+  .ff-budget-result-line .ff-budget-industry { max-width:100%; }
+  .ff-dashboard-charts .ff-chart-budget .ff-budget-result-line { align-items:flex-start; }
+  .ff-budget-result-line .ff-budget-takehome { gap:7px; }
+  .ff-dashboard-charts .ff-chart-budget .ff-budget-viz { min-height:150px; }
+}
