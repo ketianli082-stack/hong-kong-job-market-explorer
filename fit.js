@@ -404,41 +404,57 @@
     return svg(w, height, "Vacancy rate and employment year-on-year growth, " + quarterLabel(fitData.quarters[state.quarterIndex]), content);
   }
 
-  function waterfall(w, amounts) {
-    const data = [amounts.offer, -amounts.rent, -amounts.living, -amounts.deduct];
-    const labels = ["Offer", "Rent", "Living", "Set-aside"];
-    let acc = 0;
-    const rows = data.map((value, index) => {
-      const step = { label: labels[index], value, from: acc, to: acc + value };
-      acc += value;
-      return step;
+
+  // Responsive five-step waterfall. The SVG's viewBox follows the visible
+  // chart box, instead of squeezing a hard-coded 234px chart into a short row.
+  function waterfall(width, height, amounts) {
+    const w = Math.max(310, Math.round(width || 600));
+    const h = Math.max(122, Math.round(height || 155));
+    const values = [amounts.offer, -amounts.rent, -amounts.living, -amounts.deduct];
+    const labels = ["Monthly pay", "Rent", "Living", "Set-aside", "Surplus"];
+    let running = 0;
+    const rows = values.map((value, index) => {
+      const from = running;
+      running += value;
+      return { label: labels[index], value, from, to: running };
     });
-    rows.push({ label: "Surplus", value: acc, from: 0, to: acc });
-    const values = rows.flatMap(row => [row.from, row.to]);
-    const h = 234;
-    const min = Math.min(...values), max = Math.max(...values, 1);
-    const delta = Math.max(max - min, 1000);
-    const axis = axes(w, h, {
-      x: [-.6, 4.6],
-      y: [Math.min(0, min) - delta * .12, max + delta * .17],
-      xTicks: [],
-      yTicks: [min, (min + max) / 2, max].filter((value, index, all) => !index || value !== all[index - 1]),
-      yFormat: value => `${number(value / 1000)}k`,
-      bottom: 36,
-      left: 40,
-    });
-    let content = axis.grid + line(axis.left, axis.y(0), axis.right, axis.y(0), "ff-refline");
-    const barWidth = Math.min(47, (axis.right - axis.left) / 8);
+    rows.push({ label: "Surplus", value: running, from: 0, to: running });
+
+    const levels = rows.flatMap(row => [row.from, row.to]);
+    const absoluteMin = Math.min(0, ...levels);
+    const absoluteMax = Math.max(1000, ...levels);
+    const padding = Math.max(1000, (absoluteMax - absoluteMin) * .12);
+    const min = absoluteMin - padding * .32;
+    const max = absoluteMax + padding;
+    const top = 18, bottom = h - 32;
+    const y = value => bottom - (value - min) / (max - min) * (bottom - top);
+    const left = 25, right = w - 12;
+    const spacing = (right - left) / 5;
+    const x = i => left + spacing * (i + .5);
+    const barWidth = Math.max(19, Math.min(58, spacing * .46));
+    const ratio = w < 480 ? .9 : 1;
+    const numberLabel = value => (value < 0 ? "−" : "") + fmt(Math.abs(value) / 1000, 1) + "k";
+
+    let content = `<line x1="${left}" y1="${y(0)}" x2="${right}" y2="${y(0)}" stroke="#DED8E9" stroke-dasharray="3 4" />`;
     rows.forEach((row, index) => {
-      const x = axis.x(index);
-      const high = Math.min(axis.y(row.from), axis.y(row.to));
-      const low = Math.max(axis.y(row.from), axis.y(row.to));
-      const tip = `${row.label} ${money(row.value)}`;
-      content += `<rect x="${x - barWidth / 2}" y="${high}" width="${barWidth}" height="${Math.max(low - high, 1)}" fill="${index === 0 || index === 4 ? "#62568C" : "#BFA4CE"}" rx="3" data-tip="${esc(tip)}"/>`;
-      if (index < 3) content += line(x + barWidth / 2, axis.y(row.to), axis.x(index + 1) - barWidth / 2, axis.y(row.to));
-      content += text(x, high - 5, `${number(row.value / 1000)}k`) + text(x, axis.bottom + 23, row.label);
+      const cx = x(index);
+      const yFrom = y(row.from), yTo = y(row.to);
+      const barTop = Math.min(yFrom, yTo);
+      const barHeight = Math.max(2, Math.abs(yTo - yFrom));
+      const fill = index === 0 ? "#62568C" : index === 4 ? (running >= 0 ? "#7970A9" : "#CA7082") : "#D4B5CB";
+      const tip = row.label + " · " + money(row.value);
+      content += `<rect x="${cx - barWidth / 2}" y="${barTop}" width="${barWidth}" height="${barHeight}" rx="3"
+        fill="${fill}" data-tip="${esc(tip)}" role="img" aria-label="${esc(tip)}"/>`;
+      if (index < 3) {
+        content += `<line x1="${cx + barWidth/2}" y1="${yTo}" x2="${x(index+1)-barWidth/2}" y2="${yTo}"
+          stroke="#AFA5BC" stroke-dasharray="3 3"/>`;
+      }
+      const labelY = Math.max(12, barTop - 5);
+      content += `<text x="${cx}" y="${labelY}" text-anchor="middle" font-weight="700" font-size="${10.5*ratio}"
+        fill="${index===4 ? "#62568C" : "#5D5269"}">${esc(numberLabel(row.value))}</text>`;
+      content += `<text x="${cx}" y="${h-10}" text-anchor="middle" font-size="${10*ratio}" fill="#766C80">${esc(row.label)}</text>`;
     });
-    return svg(w, h, "Monthly budget waterfall chart", content);
+    return svg(w, h, "Monthly budget waterfall: pay, rent, living, set-aside and surplus", content);
   }
 
   function series(w, sets, options) {
@@ -565,13 +581,20 @@
           <p class="ff-footnote">Bubble area represents job vacancies · Quarterly data</p>
         </figure>
         <figure class="ff-card ff-chart-budget">
-          <div class="ff-card-head"><div><h3>Monthly Budget Forecast</h3><p>Median pay minus estimated monthly expenses · HKD</p></div>
-            <button type="button" class="ff-action" data-action="expenses" aria-controls="budget-settings" aria-expanded="false">Edit expenses</button></div>
+          <div class="ff-card-head ff-budget-head">
+            <div class="ff-budget-title-row">
+              <h3>Monthly Budget Forecast</h3>
+              <div class="ff-budget-control">
+                <button type="button" class="ff-action" data-action="expenses" aria-controls="budget-settings" aria-expanded="false" aria-haspopup="true">Edit expenses</button>
+                ${budgetSettings()}
+              </div>
+            </div>
+            <p>Median pay minus estimated monthly expenses · HKD</p>
+          </div>
           <div class="ff-budget-row">
             <div class="ff-budget-summary"><span id="budget-industry"></span><strong id="budget-surplus"></strong></div>
             <div class="ff-budget-viz" id="budget-viz"></div>
           </div>
-          ${budgetSettings()}
         </figure>
       </div>
     `;
@@ -608,7 +631,9 @@
     const container = $("#budget-viz");
     if (!container || !featured) return;
     const values = { offer: featured.pay50, rent: state.rent, living: state.living, deduct: state.deduct };
-    container.innerHTML = waterfall(container.clientWidth || 450, values);
+    const width = container.clientWidth || 720;
+    const height = container.clientHeight || 155;
+    container.innerHTML = waterfall(width, height, values);
   }
 
   function drawHistory(chosen, end, histMin, histMax, histYears) {
@@ -663,6 +688,9 @@
         const panel = $("#budget-settings");
         panel.hidden = !panel.hidden;
         target.setAttribute("aria-expanded", String(!panel.hidden));
+        $(".ff-chart-budget")?.classList.toggle("ff-budget-editing", !panel.hidden);
+        if (!panel.hidden) panel.querySelector('input[type="range"]')?.focus({ preventScroll: true });
+        return;
       }
     });
     app.addEventListener("input", event => {
@@ -683,6 +711,18 @@
       updateDashboard();
     });
     app.addEventListener("keydown", event => {
+      if (event.key === "Escape") {
+        const panel = $("#budget-settings");
+        if (panel && !panel.hidden) {
+          panel.hidden = true;
+          const toggle = $('[data-action="expenses"]');
+          toggle?.setAttribute("aria-expanded", "false");
+          $(".ff-chart-budget")?.classList.remove("ff-budget-editing");
+          toggle?.focus({ preventScroll: true });
+          return;
+        }
+      }
+
       const target = event.target.closest('[data-action="bubble"]');
       if (target && (event.key === "Enter" || event.key === " ")) {
         event.preventDefault(); target.dispatchEvent(new MouseEvent("click", { bubbles: true }));
