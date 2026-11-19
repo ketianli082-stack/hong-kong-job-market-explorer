@@ -6,6 +6,24 @@
   const storageKey = "hkjm-language";
   const full = {
 
+    "HONG KONG JOB MARKET · DATA STORY": "香港就业市场 · 数据故事",
+    "Introduction to Hong Kong job market": "香港就业市场引言",
+    "Explore the market.": "探索就业市场。",
+    "Shape your future.": "规划职业未来。",
+    "From employment structure to job security and pay — understand the evidence behind career decisions in Hong Kong.": "从就业结构到就业保障与薪酬，借助数据了解香港职业选择背后的市场趋势。",
+    "Three story chapters": "三大分析章节",
+    "Start Exploring": "开始探索之旅",
+    "SCROLL TO EXPLORE ↓": "向下滑动，开始探索 ↓",
+    "VICTORIA HARBOUR · HONG KONG": "维多利亚港 · 香港",
+    "Illustrated sunset skyline across Hong Kong's Victoria Harbour": "香港维多利亚港黄昏天际线插画",
+    "Recruitment reference quarter": "招聘数据参考季度",
+    "Vacancy rate (x) · Employment growth (y)": "横轴：空缺率 · 纵轴：就业同比",
+    "Bubble area represents job vacancies · Quarterly data": "气泡面积代表职位空缺数量 · 季度数据",
+    "P25–P75 · Median · HKD/month": "第25–75百分位 · 中位数 · 港元/月",
+    "P25–P75 · Median · hours/week": "第25–75百分位 · 中位数 · 小时/周",
+    "Median pay minus estimated monthly expenses · HKD": "月薪中位数减去预计每月支出 · 港元",
+
+
     "FIND YOUR FIT · CAREER DECISION DASHBOARD": "职业匹配 · 决策看板",
     "matching industries": "个行业符合条件",
     "Your Career Preferences": "你的职业偏好",
