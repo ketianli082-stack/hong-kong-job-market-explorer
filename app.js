@@ -660,6 +660,7 @@ function renderPayTrend() {
     const index = years.indexOf(year);
     if (index >= 0) { pinnedIndex = index; showYear(index); }
   };
+  container.onYearSelected(Number($("#gender-employment-year").value));
   target.addEventListener("pointermove", event => {
     if (pinnedIndex === null) showYear(indexAt(event));
   });
@@ -868,13 +869,42 @@ function fitChartLabels() {
   });
 }
 
-function syncYearOutput(id) { const input = $(id); const output = input?.nextElementSibling; if (output && output.tagName === "OUTPUT") output.textContent = input.value; }
+
+function paintRange(input) {
+  if (!input || input.type !== "range") return;
+  const min = Number(input.min), max = Number(input.max), value = Number(input.value);
+  const percent = max > min ? Math.max(0, Math.min(100, (value - min) / (max - min) * 100)) : 100;
+  input.style.setProperty("--range-progress", percent + "%");
+}
+function syncYearOutput(id) {
+  const input = $(id);
+  const output = input?.nextElementSibling;
+  if (output && output.tagName === "OUTPUT") output.textContent = input.value;
+  paintRange(input);
+}
 const renderers = {
   structure: () => { syncYearOutput("#composition-year"); renderTotalEmployment(); renderIndustryShare(); renderStatus(); renderOccupation(); },
   risk: () => { syncYearOutput("#risk-year"); renderEducationRisk(); renderUnemployment(); renderRiskGroup(); },
   equity: () => { syncYearOutput("#gender-employment-year"); renderParticipation(); renderGenderEmployment(); renderPayTrend(); renderPayGap(); }
 };
-function switchChapter(name,scroll=false){activeChapter=name;$$('[data-chapter]').forEach(b=>{const on=b.dataset.chapter===name;b.classList.toggle("active",on);b.setAttribute("aria-selected",String(on));});$$('[data-panel]').forEach(p=>{const on=p.dataset.panel===name;p.hidden=!on;p.classList.toggle("active",on);});history.replaceState(null,"",`#${name}`);requestAnimationFrame(()=>renderers[name]());if(scroll)$(".chapter-tabs").scrollIntoView({block:"start"});}
+
+function switchChapter(name, scroll=false, preserveHash=false) {
+  if (!Object.hasOwn(renderers, name)) name = "structure";
+  activeChapter = name;
+  $$('[data-chapter]').forEach(b => {
+    const on = b.dataset.chapter === name;
+    b.classList.toggle("active", on);
+    b.setAttribute("aria-selected", String(on));
+  });
+  $$('[data-panel]').forEach(p => {
+    const on = p.dataset.panel === name;
+    p.hidden = !on;
+    p.classList.toggle("active", on);
+  });
+  if (!preserveHash) history.replaceState(null, "", "#" + name);
+  requestAnimationFrame(() => renderers[name]());
+  if (scroll) document.querySelector("#story").scrollIntoView({ behavior: "smooth", block: "start" });
+}
 function populateSelects(){const years=[...new Set(data.totalEmployment.map(d=>d.year))].filter(v=>data.employmentStatus.some(row=>row.year===v)&&data.occupationMix.some(row=>row.year===v)).sort((a,b)=>a-b);const year=$("#composition-year");year.min=years[0];year.max=years.at(-1);year.value=years.at(-1);syncYearOutput("#composition-year");}
 function setupIndustryYear() {
   const select = $("#gender-employment-year");
@@ -935,14 +965,24 @@ function setup() {
   populateSelects();
   setupIndustryYear();
   setupParticipationControls();
-  $$("[data-chapter]").forEach(button => button.addEventListener("click", () => switchChapter(button.dataset.chapter)));
+  $("[data-chapter]").forEach(button => button.addEventListener("click", () => switchChapter(button.dataset.chapter, true)));
+  const begin = $("#start-exploring");
+  begin.addEventListener("click", event => { event.preventDefault(); switchChapter("structure", true); });
   $("#industry-share-reset").addEventListener("click", () => { selectedIndustryShare = null; renderIndustryShare(); });
   $("#composition-year").addEventListener("input", () => renderers.structure());
   $("#risk-year").addEventListener("input", () => setRiskYear(riskYear()));
   $("#gender-employment-year").addEventListener("input", event => event.target.dispatchEvent(new Event("change")));
   const hash = location.hash.replace("#", "");
   if (Object.hasOwn(renderers, hash)) activeChapter = hash;
-  switchChapter(activeChapter);
+  const showingLanding = !hash || hash === "landing";
+  switchChapter(activeChapter, false, showingLanding);
+  if (!showingLanding) requestAnimationFrame(() =>
+    document.querySelector("#story").scrollIntoView({behavior:"instant", block:"start"}));
+  window.addEventListener("hashchange", () => {
+    const next = location.hash.slice(1);
+    if (Object.hasOwn(renderers,next)) switchChapter(next,true,true);
+    else if (next==="landing") document.querySelector("#landing").scrollIntoView({behavior:"smooth"});
+  });
   let timer;
   addEventListener("resize", () => { clearTimeout(timer); timer = setTimeout(() => renderers[activeChapter](), 160); });
 }
