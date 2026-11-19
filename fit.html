@@ -6,68 +6,18 @@
   <meta name="theme-color" content="#f5f6f8">
   <title>Find Your Fit · Hong Kong Job Market Explorer</title>
   <link rel="icon" href="assets/mark.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..800&amp;family=Manrope:wght@600..800&amp;display=swap" media="print" onload="this.media='all'">
   <link rel="stylesheet" href="styles.css">
 </head>
-<body>
+<body class="fit-page">
   <header class="topbar">
     <a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true"></span><span>Hong Kong Job Market Explorer</span></a>
     <nav aria-label="Primary navigation"><a href="index.html">Explore</a><a class="active" href="fit.html">Find Your Fit</a></nav>
   </header>
 
   <main>
-    <section class="tool-intro compact-intro"><h1>Find Your Fit</h1></section>
-
-    <section class="preferences-section">
-      <div class="section-title-row"><div><span>01 · PRIORITIES</span><h2>Your Priorities</h2></div></div>
-      <div class="priority-grid primary-priorities">
-        <div class="range-field"><label for="target-pay">Target monthly pay <output id="target-pay-output"></output></label><input id="target-pay" type="range" min="10000" max="60000" step="500" value="25000"></div>
-        <div class="range-field"><label for="hours-cap">Maximum weekly hours <output id="hours-cap-output"></output></label><input id="hours-cap" type="range" min="30" max="60" step="1" value="42"></div>
-        <div class="range-field"><label for="surplus-target">Minimum monthly surplus <output id="surplus-target-output"></output></label><input id="surplus-target" type="range" min="0" max="20000" step="500" value="6000"></div>
-      </div>
-      <div class="priority-grid select-priorities">
-        <label class="form-field">Pay reference year<select id="pay-year"></select></label>
-        <div class="form-field"><span>Broad industry</span><div class="multi-select"><button id="broad-industry-toggle" class="multi-select-toggle" type="button" aria-expanded="false">All broad industries</button><div id="broad-industry-menu" class="multi-select-menu" hidden></div></div></div>
-        <div class="form-field"><span>Detailed industry</span><div class="multi-select"><button id="priority-industry-toggle" class="multi-select-toggle" type="button" aria-expanded="false">All detailed industries</button><div id="priority-industry-menu" class="multi-select-menu" hidden></div></div></div>
-      </div>
-      <div class="match-summary"><strong id="match-count">—</strong><span>industries meet all targets</span></div>
-      <details class="cost-disclosure">
-        <summary>Monthly cost assumptions</summary>
-        <div class="priority-grid cost-priorities">
-          <label class="form-field">Rent <span class="input-prefix">HKD</span><input id="rent" type="number" min="0" step="500" value="10000"></label>
-          <label class="form-field">Living &amp; transport <span class="input-prefix">HKD</span><input id="living" type="number" min="0" step="500" value="6500"></label>
-          <label class="form-field">Other deductions <span class="input-prefix">HKD</span><input id="deductions" type="number" min="0" step="500" value="2000"></label>
-        </div>
-      </details>
-      <button class="secondary-button" id="reset-filters" type="button">Reset preferences</button>
-    </section>
-
-    <section class="results-section">
-      <div class="section-title-row"><div><span>02 · RESULTS</span><h2>Industry Matches</h2></div></div>
-      <div class="results-controls">
-        <div class="status-tabs" role="tablist" aria-label="Filter results"><button class="active" data-status="all" type="button">All</button><button data-status="match" type="button">Matches</button><button data-status="below" type="button">Below targets</button></div>
-        <label>Sort<select id="result-sort"><option value="match">Best match</option><option value="pay">Median pay</option><option value="hours">Weekly hours</option><option value="vacancy">Vacancy rate</option></select></label>
-      </div>
-      <div class="table-wrap"><table class="results-table"><thead><tr><th>Industry</th><th>Median pay</th><th>Weekly hours</th><th>Estimated surplus</th><th>Vacancy rate</th><th>Status</th><th>Compare</th></tr></thead><tbody id="results-body"></tbody></table></div>
-    </section>
-
-    <section class="comparison-section" id="comparison-section">
-      <div class="section-title-row"><div><span>03 · COMPARISON</span><h2>Compare Industries</h2></div><p id="compare-hint">Select industries to compare</p></div>
-      <div id="comparison-empty" class="empty-state">Use the compare checkboxes in the results table to build a side-by-side view.</div>
-      <div id="comparison-content" hidden>
-        <div id="comparison-cards" class="comparison-cards"></div>
-        <div class="dashboard-grid two-columns comparison-charts"><figure class="viz-card"><div class="viz-heading"><div><h3>Monthly pay range</h3><p>P25–P75, HKD · hover for details</p></div></div><div class="range-scroll"><div id="compare-pay-chart" class="chart h-260"></div></div></figure><figure class="viz-card"><div class="viz-heading"><div><h3>Weekly hours range</h3><p>P25–P75, hours · hover for details</p></div></div><div class="range-scroll"><div id="compare-hours-chart" class="chart h-260"></div></div></figure></div>
-      </div>
-    </section>
-
-    <section class="detail-section" id="detail-section">
-      <div class="section-title-row"><div><span>04 · DETAIL</span><h2>Industry Detail</h2></div><label class="form-field compact-field">Industry<select id="detail-industry"></select></label></div>
-      <h3 class="detail-name" id="detail-title">—</h3>
-      <div class="dashboard-grid two-columns"><figure class="viz-card"><div class="viz-heading"><div><h3>Broad-industry employment</h3><p>Employed persons</p></div><span>Quarterly</span></div><div id="detail-trend-chart" class="chart h-280"></div></figure><figure class="viz-card"><div class="viz-heading"><div><h3>Vacancies by occupation</h3><p>Number of vacancies</p></div><span>2026 Q2</span></div><div id="detail-occupation-chart" class="chart h-280"></div></figure></div>
-    </section>
-
-    <section class="budget-section" id="budget-section">
-      <div class="section-title-row"><div><span>05 · BUDGET</span><h2>Monthly Budget</h2></div><label class="form-field offer-field">Offer pay <span class="input-prefix">HKD</span><input id="offer-pay" type="number" min="0" step="500" value="25000"></label></div>
-      <div class="budget-layout"><div id="budget-waterfall" class="budget-waterfall"></div><div class="budget-outcome"><span>Estimated balance</span><strong id="budget-balance">—</strong><small>Before tax and MPF</small></div></div>
+    <section class="ff-shell" id="fit-app" aria-live="polite">
+      <p class="ff-loading">Loading job options…</p>
     </section>
   </main>
 
