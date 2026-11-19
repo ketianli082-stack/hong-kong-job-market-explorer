@@ -826,3 +826,27 @@ input[type="range"]:focus-visible { outline:2px solid #8074A8; outline-offset:5p
   }
 }
 .tooltip { white-space:pre-line; }
+
+/* Landing is a separate full-viewport screen: no visible top navigation or scrolling. */
+.explore-page.is-landing { height:100dvh; overflow:hidden; }
+.explore-page.is-landing > .topbar,
+.explore-page.is-landing #story { display:none!important; }
+.explore-page:not(.is-landing) .landing-hero { display:none!important; }
+.explore-page.is-landing .landing-hero {
+  height:100dvh; min-height:100svh; max-height:100dvh;
+  width:100vw; margin:0; overflow:hidden;
+}
+.explore-page.is-landing main { height:100dvh; min-height:0; }
+.explore-page.is-landing .landing-content { padding-top:20px; padding-bottom:20px; }
+.explore-page.is-landing .landing-content h1 { margin:20px 0 22px; }
+.explore-page.is-landing .landing-start { margin-top:32px; }
+@media (max-width:899px) {
+  .explore-page.is-landing .landing-hero {
+    grid-template-columns:1fr; grid-template-rows:minmax(0,1fr) minmax(0,.8fr);
+    height:100dvh; min-height:100svh;
+  }
+  .explore-page.is-landing .landing-content { padding:22px 24px 16px; }
+  .explore-page.is-landing .landing-content h1 { margin:10px 0 12px; }
+  .explore-page.is-landing .landing-start { margin-top:19px; }
+  .explore-page.is-landing .landing-image-wrap { min-height:0; height:100%; }
+}
