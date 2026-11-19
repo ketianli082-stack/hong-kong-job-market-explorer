@@ -965,7 +965,7 @@ function setup() {
   populateSelects();
   setupIndustryYear();
   setupParticipationControls();
-  $("[data-chapter]").forEach(button => button.addEventListener("click", () => switchChapter(button.dataset.chapter)));
+  $$("[data-chapter]").forEach(button => button.addEventListener("click", () => switchChapter(button.dataset.chapter)));
   const begin = $("#start-exploring");
   begin.addEventListener("click", event => {
     event.preventDefault();
