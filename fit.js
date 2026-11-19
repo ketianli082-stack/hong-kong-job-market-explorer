@@ -48,7 +48,6 @@
   };
 
   let fitData = null;
-  let quarterTimer = null;
 
   function prepare(json) {
     const demand = json.demand2026Q2.map(row => ({
@@ -224,25 +223,6 @@
     $("#quarter-start").textContent = quarterLabel(fitData.quarters[0]);
     $("#quarter-end").textContent = quarterLabel(fitData.quarters.at(-1));
   }
-  function stopQuarterPlayback() {
-    if (quarterTimer !== null) clearInterval(quarterTimer);
-    quarterTimer = null;
-    const button = $('[data-action="quarterPlay"]');
-    if (button) { button.textContent = "Play"; button.setAttribute("aria-pressed", "false"); }
-  }
-  function toggleQuarterPlayback() {
-    if (quarterTimer !== null) { stopQuarterPlayback(); return; }
-    if (state.quarterIndex >= fitData.quarters.length - 1) state.quarterIndex = 0;
-    const button = $('[data-action="quarterPlay"]');
-    if (button) { button.textContent = "Pause"; button.setAttribute("aria-pressed", "true"); }
-    updateDashboard();
-    quarterTimer = setInterval(() => {
-      if (state.quarterIndex >= fitData.quarters.length - 1) { stopQuarterPlayback(); return; }
-      state.quarterIndex += 1;
-      updateDashboard();
-    }, 850);
-  }
-
   function updateSliderLimits() {
     ["targetPay", "maxHours", "targetSurplus", "payYear"].forEach(key => {
       const lim = sliderLimits(key);
@@ -407,54 +387,48 @@
 
   // Responsive five-step waterfall. The SVG's viewBox follows the visible
   // chart box, instead of squeezing a hard-coded 234px chart into a short row.
+
+  // Five-step waterfall, full card width and compact vertical scale.
   function waterfall(width, height, amounts) {
-    const w = Math.max(310, Math.round(width || 600));
-    const h = Math.max(122, Math.round(height || 155));
+    const w = Math.max(300, Math.round(width || 960));
+    const h = Math.max(125, Math.round(height || 164));
     const values = [amounts.offer, -amounts.rent, -amounts.living, -amounts.deduct];
     const labels = ["Monthly pay", "Rent", "Living", "Set-aside", "Surplus"];
     let running = 0;
-    const rows = values.map((value, index) => {
+    const steps = values.map((value, index) => {
       const from = running;
       running += value;
-      return { label: labels[index], value, from, to: running };
+      return {label: labels[index], value, from, to: running};
     });
-    rows.push({ label: "Surplus", value: running, from: 0, to: running });
-
-    const levels = rows.flatMap(row => [row.from, row.to]);
-    const absoluteMin = Math.min(0, ...levels);
-    const absoluteMax = Math.max(1000, ...levels);
-    const padding = Math.max(1000, (absoluteMax - absoluteMin) * .12);
-    const min = absoluteMin - padding * .32;
-    const max = absoluteMax + padding;
-    const top = 18, bottom = h - 32;
-    const y = value => bottom - (value - min) / (max - min) * (bottom - top);
-    const left = 25, right = w - 12;
-    const spacing = (right - left) / 5;
-    const x = i => left + spacing * (i + .5);
-    const barWidth = Math.max(19, Math.min(58, spacing * .46));
-    const ratio = w < 480 ? .9 : 1;
-    const numberLabel = value => (value < 0 ? "−" : "") + fmt(Math.abs(value) / 1000, 1) + "k";
-
-    let content = `<line x1="${left}" y1="${y(0)}" x2="${right}" y2="${y(0)}" stroke="#DED8E9" stroke-dasharray="3 4" />`;
-    rows.forEach((row, index) => {
-      const cx = x(index);
-      const yFrom = y(row.from), yTo = y(row.to);
-      const barTop = Math.min(yFrom, yTo);
-      const barHeight = Math.max(2, Math.abs(yTo - yFrom));
-      const fill = index === 0 ? "#62568C" : index === 4 ? (running >= 0 ? "#7970A9" : "#CA7082") : "#D4B5CB";
-      const tip = row.label + " · " + money(row.value);
-      content += `<rect x="${cx - barWidth / 2}" y="${barTop}" width="${barWidth}" height="${barHeight}" rx="3"
-        fill="${fill}" data-tip="${esc(tip)}" role="img" aria-label="${esc(tip)}"/>`;
-      if (index < 3) {
-        content += `<line x1="${cx + barWidth/2}" y1="${yTo}" x2="${x(index+1)-barWidth/2}" y2="${yTo}"
-          stroke="#AFA5BC" stroke-dasharray="3 3"/>`;
-      }
-      const labelY = Math.max(12, barTop - 5);
-      content += `<text x="${cx}" y="${labelY}" text-anchor="middle" font-weight="700" font-size="${10.5*ratio}"
-        fill="${index===4 ? "#62568C" : "#5D5269"}">${esc(numberLabel(row.value))}</text>`;
-      content += `<text x="${cx}" y="${h-10}" text-anchor="middle" font-size="${10*ratio}" fill="#766C80">${esc(row.label)}</text>`;
+    steps.push({label: labels[4], value: running, from:0, to:running});
+    const minValue = Math.min(0, ...steps.flatMap(step=>[step.from,step.to]));
+    const maxValue = Math.max(1000, ...steps.flatMap(step=>[step.from,step.to]));
+    const span = Math.max(1000, maxValue - minValue);
+    const top=20, bottom=h-30;
+    const upper = maxValue + span*.13;
+    const lower = minValue - span*.05;
+    const y = value=>bottom-(value-lower)/(upper-lower)*(bottom-top);
+    const left=Math.max(26,w*.025), right=w-Math.max(26,w*.025);
+    const slot=(right-left)/5;
+    const x = index => left+slot*(index+.5);
+    const bw=Math.max(18,Math.min(112,slot*.50));
+    const labelSize=w<480?10:11;
+    const fmtShort = value => (value<0?"−":"")+fmt(Math.abs(value)/1000,1)+"k";
+    let content=`<line x1="${left}" y1="${y(0)}" x2="${right}" y2="${y(0)}" stroke="#E6DFEC" stroke-width="1" stroke-dasharray="4 4"/>`;
+    steps.forEach((step,index)=>{
+      const cx=x(index);
+      const topY=Math.min(y(step.from),y(step.to));
+      const bottomY=Math.max(y(step.from),y(step.to));
+      const bh=Math.max(2,bottomY-topY);
+      const fill=index===0?"#685B92":index===4?(running>=0?"#8074A8":"#B95C73"):"#D2ACCA";
+      const desc=step.label+" · "+money(step.value);
+      content+=`<rect x="${cx-bw/2}" y="${topY}" width="${bw}" height="${bh}" rx="4" fill="${fill}" data-tip="${esc(desc)}" aria-label="${esc(desc)}"/>`;
+      if(index<3)content+=`<line x1="${cx+bw/2}" y1="${y(step.to)}" x2="${x(index+1)-bw/2}" y2="${y(step.to)}" stroke="#B7ADC2" stroke-width="1.2" stroke-dasharray="4 4"/>`;
+      const numberY=Math.max(14,topY-6);
+      content+=`<text x="${cx}" y="${numberY}" text-anchor="middle" font-size="${labelSize}" font-weight="750" fill="#514468">${esc(fmtShort(step.value))}</text>`;
+      content+=`<text x="${cx}" y="${h-8}" text-anchor="middle" font-size="${labelSize-1}" fill="#756B7F">${esc(step.label)}</text>`;
     });
-    return svg(w, h, "Monthly budget waterfall: pay, rent, living, set-aside and surplus", content);
+    return svg(w,h,"Monthly budget forecast waterfall chart",content);
   }
 
   function series(w, sets, options) {
@@ -573,7 +547,6 @@
             <input type="range" id="quarter-slider" data-control="quarterIndex" min="0" max="41" step="1" value="${state.quarterIndex}" aria-label="Recruitment reference quarter">
             <div class="ff-quarter-meta">
               <span id="quarter-start">2016 Q1</span>
-              <button type="button" class="ff-action" data-action="quarterPlay" aria-pressed="false">Play</button>
               <span id="quarter-end">2026 Q2</span>
             </div>
           </div>
@@ -589,12 +562,12 @@
                 ${budgetSettings()}
               </div>
             </div>
-            <p>Median pay minus estimated monthly expenses · HKD</p>
           </div>
-          <div class="ff-budget-row">
-            <div class="ff-budget-summary"><span id="budget-industry"></span><strong id="budget-surplus"></strong></div>
-            <div class="ff-budget-viz" id="budget-viz"></div>
+          <div class="ff-budget-result-line" aria-live="polite">
+            <div class="ff-budget-industry"><span class="ff-budget-overline">Selected industry</span><strong id="budget-industry"></strong></div>
+            <div class="ff-budget-takehome"><span>Estimated monthly surplus</span><strong id="budget-surplus"></strong></div>
           </div>
+          <div class="ff-budget-viz" id="budget-viz"></div>
         </figure>
       </div>
     `;
@@ -613,7 +586,9 @@
     $("#hours-range-viz").innerHTML = intervals(matched, "hours");
     document.querySelectorAll("[data-year-label]").forEach(element => element.textContent = state.payYear);
     $("#budget-industry").textContent = featured?.name || "";
-    $("#budget-surplus").innerHTML = esc(money(featured?.surplus ?? 0)) + " <span>surplus</span>";
+    const surplus = featured?.surplus ?? 0;
+    $("#budget-surplus").textContent = money(surplus);
+    $("#budget-surplus").classList.toggle("ff-budget-negative", surplus < 0);
     drawMap(chosen);
     drawBudget(featured);
   }
@@ -632,7 +607,7 @@
     if (!container || !featured) return;
     const values = { offer: featured.pay50, rent: state.rent, living: state.living, deduct: state.deduct };
     const width = container.clientWidth || 720;
-    const height = container.clientHeight || 155;
+    const height = container.clientHeight || 164;
     container.innerHTML = waterfall(width, height, values);
   }
 
@@ -668,7 +643,6 @@
       if (!target) return;
       const action = target.dataset.action;
       if (action === "reset") {
-        stopQuarterPlayback();
         Object.assign(state, { targetPay: 25000, maxHours: 42, targetSurplus: 6000, payYear: 2025,
           focus: null, rent: 10000, living: 6500, deduct: 2000, adjustment: "", quarterIndex: fitData.quarters.length - 1 });
         render(); return;
@@ -683,7 +657,6 @@
         if (match) state.focus = state.focus === match.name ? null : match.name;
         updateDashboard(); return;
       }
-      if (action === "quarterPlay") { toggleQuarterPlayback(); return; }
       if (action === "expenses") {
         const panel = $("#budget-settings");
         panel.hidden = !panel.hidden;
@@ -698,7 +671,6 @@
       if (!input) return;
       const key = input.dataset.control;
       if (key === "quarterIndex") {
-        stopQuarterPlayback();
         state.quarterIndex = Number(input.value);
         updateDashboard();
         return;
@@ -728,7 +700,6 @@
         event.preventDefault(); target.dispatchEvent(new MouseEvent("click", { bubbles: true }));
       }
     });
-    document.addEventListener("visibilitychange", () => { if (document.hidden) stopQuarterPlayback(); });
     app.addEventListener("pointermove", event => {
       const target = event.target.closest("[data-tip]");
       if (target) showTip(target, event); else hideTip();
