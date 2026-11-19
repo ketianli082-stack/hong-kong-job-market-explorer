@@ -21,7 +21,7 @@ let riskAgeHistory;
 let riskEducationHistory;
 let selectedRiskEducation = null;
 let participationTimer;
-let activeChapter = "markets";
+let activeChapter = "structure";
 let highlightedMarketRegion = "all";
 let selectedMarketPeriod = "latest";
 let selectedIndustryShare = null;
@@ -703,9 +703,9 @@ function renderPayTrend() {
 
 function setRiskYear(year) {
   $("#risk-year").value = year;
+  syncYearOutput("#risk-year");
   renderUnemployment();
   renderRiskGroup();
-  renderRiskAgeTrend();
   renderEducationRisk();
 }
 function riskYear() { return +$("#risk-year").value; }
@@ -803,7 +803,7 @@ function renderRiskGroup() {
   rows.forEach((d,i)=>{
     const center=m.top+(i+.5)*rowHeight;
     const bar=s("rect",{x:m.left,y:center-7,width:x(d.rate)-m.left,height:14,rx:2,fill:d.age===$("#risk-age").value?"#824A7E":"#EDB1D4",tabindex:"0",role:"button","aria-label":d.age,"data-age":d.age,style:"cursor:pointer"});
-    const choose=()=>{$("#risk-age").value=d.age;hideTip();renderRiskGroup();renderRiskAgeTrend();};
+    const choose=()=>{$("#risk-age").value=d.age;hideTip();renderRiskGroup();};
     bar.addEventListener("click",choose);
     bar.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();choose();}});
     tip(bar,`<strong>${d.age} · ${d.year}</strong>${fmt(d.rate,1)}% unemployment`);
@@ -868,25 +868,22 @@ function fitChartLabels() {
   });
 }
 
-const renderers={markets:()=>{renderAge();renderMiddleAge();renderUnder35();},structure:()=>{renderTotalEmployment();renderIndustryShare();renderStatus();renderOccupation();},risk:()=>{renderEducationRisk();renderUnemployment();renderRiskGroup();renderRiskAgeTrend();},equity:()=>{renderParticipation();renderGenderEmployment();renderPayTrend();renderPayGap();}};
-function setChapterNavigation(open) {
-  document.body.classList.toggle("nav-collapsed", !open);
-  const toggle = $("#chapter-nav-toggle");
-  toggle.setAttribute("aria-expanded", String(open));
-  toggle.setAttribute("aria-label", open ? "Collapse chapter navigation" : "Expand chapter navigation");
-  toggle.textContent = open ? "‹" : "›";
-  requestAnimationFrame(() => renderers[activeChapter]());
-}
-
+function syncYearOutput(id) { const input = $(id); const output = input?.nextElementSibling; if (output && output.tagName === "OUTPUT") output.textContent = input.value; }
+const renderers = {
+  structure: () => { syncYearOutput("#composition-year"); renderTotalEmployment(); renderIndustryShare(); renderStatus(); renderOccupation(); },
+  risk: () => { syncYearOutput("#risk-year"); renderEducationRisk(); renderUnemployment(); renderRiskGroup(); },
+  equity: () => { syncYearOutput("#gender-employment-year"); renderParticipation(); renderGenderEmployment(); renderPayTrend(); renderPayGap(); }
+};
 function switchChapter(name,scroll=false){activeChapter=name;$$('[data-chapter]').forEach(b=>{const on=b.dataset.chapter===name;b.classList.toggle("active",on);b.setAttribute("aria-selected",String(on));});$$('[data-panel]').forEach(p=>{const on=p.dataset.panel===name;p.hidden=!on;p.classList.toggle("active",on);});history.replaceState(null,"",`#${name}`);requestAnimationFrame(()=>renderers[name]());if(scroll)$(".chapter-tabs").scrollIntoView({block:"start"});}
-function populateSelects(){const years=[...new Set(data.totalEmployment.map(d=>d.year))].sort((a,b)=>b-a),year=$("#composition-year");years.forEach(v=>{const option=new Option(v,v);option.disabled=!data.employmentStatus.some(row=>row.year===v)||!data.occupationMix.some(row=>row.year===v);year.add(option);});year.value=years[0];}
+function populateSelects(){const years=[...new Set(data.totalEmployment.map(d=>d.year))].filter(v=>data.employmentStatus.some(row=>row.year===v)&&data.occupationMix.some(row=>row.year===v)).sort((a,b)=>a-b);const year=$("#composition-year");year.min=years[0];year.max=years.at(-1);year.value=years.at(-1);syncYearOutput("#composition-year");}
 function setupIndustryYear() {
   const select = $("#gender-employment-year");
   const years = Object.keys(industryEmploymentBySex)
     .filter(year => Object.hasOwn(industryPayBySex, year))
     .sort((a, b) => b - a);
-  years.forEach(year => select.add(new Option(year, year)));
+  select.min = Math.min(...years.map(Number)); select.max = Math.max(...years.map(Number)); select.value = select.max; syncYearOutput("#gender-employment-year");
   select.addEventListener("change", () => {
+    syncYearOutput("#gender-employment-year");
     renderGenderEmployment();
     renderPayGap();
     renderParticipation();
@@ -905,7 +902,7 @@ function setupParticipationControls() {
   play.addEventListener("click", () => {
     if (participationTimer) { stop(); return; }
     const select = $("#gender-employment-year");
-    const years = [...select.options].map(option => +option.value).sort((a,b) => a-b);
+    const years = Array.from({ length: Number(select.max) - Number(select.min) + 1 }, (_, index) => Number(select.min) + index);
     const advance = () => {
       const index = years.indexOf(+select.value);
       if (index === years.length - 1) { stop(); return; }
@@ -927,17 +924,28 @@ function setupParticipationControls() {
 }
 
 function setupRiskControls() {
-  [...new Set(riskAgeHistory.map(d=>d.year))].sort((a,b)=>b-a).forEach(year=>$("#risk-year").add(new Option(year,year)));
-  [...new Set(riskAgeHistory.map(d=>d.age))].forEach(age=>$("#risk-age").add(new Option(age,age)));
-  $("#risk-age").value="15 - 19";
+  const years = [...new Set(riskAgeHistory.map(d => d.year))].sort((a, b) => a - b);
+  const year = $("#risk-year");
+  year.min = years[0]; year.max = years.at(-1); year.value = years.at(-1);
+  syncYearOutput("#risk-year");
 }
 
-function setup(){$("#chapter-nav-toggle").addEventListener("click",()=>setChapterNavigation(document.body.classList.contains("nav-collapsed")));setupRiskControls();$$("[data-market-period]").forEach(button => button.addEventListener("click", () => {
-  selectedMarketPeriod = button.dataset.marketPeriod;
-  $$("[data-market-period]").forEach(item => item.setAttribute("aria-pressed", String(item === button)));
-  hideTip();
-  renderUnder35();
-}));populateSelects();setupIndustryYear();setupParticipationControls();$$('[data-chapter]').forEach(b=>b.addEventListener("click",()=>{switchChapter(b.dataset.chapter);if(desktopDashboard())setChapterNavigation(false);}));$("#industry-share-reset").addEventListener("click",()=>{selectedIndustryShare=null;renderIndustryShare();});$("#composition-year").addEventListener("change",()=>renderers.structure());$("#risk-year").addEventListener("change",()=>setRiskYear(riskYear()));$("#risk-age").addEventListener("change",()=>{renderRiskGroup();renderRiskAgeTrend();});const hash=location.hash.replace("#","");if(Object.hasOwn(renderers,hash))activeChapter=hash;switchChapter(activeChapter);let timer;addEventListener("resize",()=>{clearTimeout(timer);timer=setTimeout(()=>renderers[activeChapter](),160);});}
+function setup() {
+  setupRiskControls();
+  populateSelects();
+  setupIndustryYear();
+  setupParticipationControls();
+  $$("[data-chapter]").forEach(button => button.addEventListener("click", () => switchChapter(button.dataset.chapter)));
+  $("#industry-share-reset").addEventListener("click", () => { selectedIndustryShare = null; renderIndustryShare(); });
+  $("#composition-year").addEventListener("input", () => renderers.structure());
+  $("#risk-year").addEventListener("input", () => setRiskYear(riskYear()));
+  $("#gender-employment-year").addEventListener("input", event => event.target.dispatchEvent(new Event("change")));
+  const hash = location.hash.replace("#", "");
+  if (Object.hasOwn(renderers, hash)) activeChapter = hash;
+  switchChapter(activeChapter);
+  let timer;
+  addEventListener("resize", () => { clearTimeout(timer); timer = setTimeout(() => renderers[activeChapter](), 160); });
+}
 
 const industryEmploymentRequest = fetch("data/industry-employment-by-sex.json")
   .then(response => response.json())
