@@ -818,3 +818,11 @@ input[type="range"]:focus-visible { outline:2px solid #8074A8; outline-offset:5p
   .ff-budget-row .ff-budget-viz { min-height:175px; }
   .ff-interval-container { overflow:visible; max-height:none; }
 }
+
+/* When many industries match, the two distribution cards expand on smaller viewports instead of scrolling internally. */
+@media (max-width:1100px), (max-height:710px) {
+  .ff-dashboard-charts .ff-chart-pay, .ff-dashboard-charts .ff-chart-hours {
+    min-height:var(--fit-list-min-height,390px)!important;
+  }
+}
+.tooltip { white-space:pre-line; }
