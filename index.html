@@ -6,9 +6,9 @@
   <meta name="description" content="Interactive exploration of Hong Kong employment, pay and labour-market risk.">
   <title>Hong Kong Job Market Explorer</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..800&amp;family=Manrope:wght@600..800&amp;display=swap">
-  <link rel="stylesheet" href="styles.css?v=37">
+  <link rel="stylesheet" href="styles.css?v=38">
 </head>
-<body class="explore-page">
+<body class="explore-page is-landing">
   <header class="topbar">
     <a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true"></span><span>Hong Kong Job Market Explorer</span></a>
     <nav aria-label="Primary navigation"><a class="active" href="index.html">Explore</a><a href="fit.html">Find Your Fit</a></nav><div class="language-toggle" role="group" aria-label="Language / 语言"><button type="button" data-lang="en" aria-pressed="true">EN</button><button type="button" data-lang="zh" aria-pressed="false">中文</button></div>
@@ -20,19 +20,13 @@
         <div class="landing-kicker">HONG KONG JOB MARKET · DATA STORY</div>
         <h1>Explore the market.<br><em>Shape your future.</em></h1>
         <p>From employment structure to job security and pay — understand the evidence behind career decisions in Hong Kong.</p>
-        <div class="landing-chapters" aria-label="Three story chapters">
-          <span>01 <strong>Employment Structure</strong></span>
-          <span>02 <strong>Risk &amp; Resilience</strong></span>
-          <span>03 <strong>Gender &amp; Pay</strong></span>
-        </div>
-        <a class="landing-start" id="start-exploring" href="#structure">Start Exploring <span aria-hidden="true">↓</span></a>
+<a class="landing-start" id="start-exploring" href="#structure">Start Exploring <span aria-hidden="true">↓</span></a>
       </div>
       <div class="landing-image-wrap">
         <img class="landing-photo" src="assets/harbour.webp" alt="Illustrated sunset skyline across Hong Kong's Victoria Harbour" fetchpriority="high">
         <span class="landing-image-label">VICTORIA HARBOUR · HONG KONG</span>
       </div>
-      <span class="landing-scroll-hint" aria-hidden="true">SCROLL TO EXPLORE ↓</span>
-    </section>
+</section>
     <section class="story-workspace" id="story" aria-label="Hong Kong job market story">
       <div id="chapter-navigation" class="chapter-tabs" role="tablist" aria-label="Story chapters">
         <button class="active" role="tab" aria-selected="true" id="tab-structure" aria-controls="chapter-structure" data-chapter="structure"><span>01</span><strong>Employment Structure</strong></button>
@@ -81,6 +75,6 @@
   </main>
   <div id="tooltip" class="tooltip" role="status" aria-live="polite"></div>
   <script src="i18n.js?v=5" defer></script>
-  <script src="app.js?v=55" defer></script>
+  <script src="app.js?v=56" defer></script>
 </body>
 </html>
