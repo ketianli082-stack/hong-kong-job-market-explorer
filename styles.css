@@ -660,3 +660,161 @@ html[lang="zh-CN"] .ff-field { line-height: 1.55; }
   .ff-chart-pay,.ff-chart-hours { min-height:260px; }
   .ff-budget-settings { right:10px; top:85px; }
 }
+
+
+/* November 2026 — photo-led story introduction, responsive three-chart decision layout. */
+:root { --range-selected: #8074A8; --range-idle:#DED8E9; }
+input[type="range"], .explore-page input[type="range"], .fit-page input[type="range"] {
+  appearance:none; -webkit-appearance:none; height:6px; border:0; outline:0; border-radius:99px;
+  background:linear-gradient(to right,var(--range-selected) 0%,var(--range-selected) var(--range-progress,0%),var(--range-idle) var(--range-progress,0%),var(--range-idle) 100%);
+  box-shadow:none; cursor:pointer;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance:none; appearance:none;
+  height:16px; width:16px; border:3px solid #8074A8; border-radius:50%; background:#fff;
+  box-shadow:0 1px 4px #45365a33;
+}
+input[type="range"]::-moz-range-thumb {
+  height:12px; width:12px; border:3px solid #8074A8; border-radius:50%; background:#fff;
+  box-shadow:0 1px 4px #45365a33; cursor:pointer;
+}
+input[type="range"]:focus-visible { outline:2px solid #8074A8; outline-offset:5px; }
+.explore-page { height:auto; }
+.explore-page main { display:block; height:auto; min-height:0; overflow:visible; }
+.landing-hero {
+  display:grid; grid-template-columns:minmax(0,.9fr) minmax(0,1.1fr);
+  min-height:calc(100svh - 44px); height:calc(100dvh - 44px);
+  position:relative; overflow:hidden;
+  background:linear-gradient(150deg,#211b31 0%,#3d2b52 58%,#665274 100%);
+  color:#fff;
+}
+.landing-content {
+  position:relative; z-index:2; padding:clamp(28px,5.8vw,100px) clamp(24px,4.3vw,85px);
+  display:flex; flex-direction:column; justify-content:center; align-items:flex-start; min-width:0;
+}
+.landing-kicker { font:700 11px/1.5 Inter,system-ui,sans-serif; letter-spacing:.19em; color:#edd8f0; }
+.landing-content h1 {
+  margin:20px 0 22px; font:750 clamp(34px,4.4vw,75px)/1.08 Manrope,Inter,system-ui,sans-serif;
+  letter-spacing:-.054em; max-width:12em; text-wrap:balance;
+}
+.landing-content h1 em { font-style:normal; color:#e5b8dd; }
+.landing-content p { margin:0; max-width:38em; font:400 clamp(13px,1.15vw,16px)/1.7 Inter,system-ui,sans-serif; color:#eee5f3; }
+.landing-chapters { display:flex; flex-direction:column; margin:29px 0 30px; gap:10px; color:#cebdd8; font-size:12px; font-weight:650; }
+.landing-chapters span { display:flex; gap:14px; align-items:baseline; }
+.landing-chapters strong { color:#f3e9f6; font-weight:600; }
+.landing-start {
+  display:inline-flex; align-items:center; gap:28px; padding:13px 20px; border-radius:8px;
+  background:#f3e8f5; color:#3c2e50; font-size:13px; font-weight:750;
+  text-decoration:none; box-shadow:0 5px 24px #10091d22; transition:transform .2s ease,background .2s ease;
+}
+.landing-start:hover { background:white; transform:translateY(-2px); }
+.landing-image-wrap { position:relative; overflow:hidden; height:100%; min-height:0; background:#755b7c; }
+.landing-photo { display:block; height:100%; width:100%; object-fit:cover; object-position:center; }
+.landing-image-wrap::after {
+  content:""; position:absolute; inset:0;
+  background:linear-gradient(90deg,rgba(31,23,47,.21),transparent 30%),linear-gradient(0deg,#1f183640,transparent 36%);
+  pointer-events:none;
+}
+.landing-image-label { position:absolute; bottom:26px; right:32px; z-index:1; font-size:10px; font-weight:650; letter-spacing:.13em; color:white; text-shadow:0 1px 6px #1d123a; }
+.landing-scroll-hint { position:absolute; z-index:4; bottom:18px; left:50%; transform:translateX(-50%); font-size:10px; font-weight:700; letter-spacing:.14em; color:#f3e6f5; }
+.explore-page #story { scroll-margin-top:44px; }
+@media (min-width:900px) and (min-height:600px) {
+  .explore-page { height:auto; }
+  .explore-page main { display:block; height:auto; }
+  .explore-page #story {
+    height:calc(100dvh - 44px); min-height:600px; max-width:none; flex:none;
+    padding-top:10px; padding-bottom:12px;
+  }
+}
+@media(max-width:899px) {
+  .landing-hero { min-height:calc(100svh - 56px); height:auto; grid-template-columns:1fr; }
+  .landing-content { padding:42px 24px 28px; }
+  .landing-content h1 { font-size:clamp(36px,7vw,57px); }
+  .landing-image-wrap { min-height:300px; height:35vh; }
+  .landing-scroll-hint { left:auto; right:22px; transform:none; bottom:12px; }
+  .explore-page #story { scroll-margin-top:56px; }
+}
+@media (max-height:650px) and (min-width:900px) {
+  .landing-content { padding-top:26px; padding-bottom:26px; }
+  .landing-content h1 { margin:12px 0; font-size:clamp(30px,3.7vw,58px); }
+  .landing-chapters { margin:14px 0; gap:4px; }
+}
+/* The story and career sliders share one painted progress track. */
+.explore-page .year-slider input[type=range] { height:6px; min-height:6px; }
+.ff-slider-item input[type=range] { height:6px; min-height:6px; margin:8px 0 4px; }
+.ff-sr-only { position:absolute!important; width:1px; height:1px; padding:0; margin:-1px;
+  overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+.ff-preferences { padding:7px 14px 5px; margin:5px 0 8px; }
+.ff-slider-grid { padding-top:2px; gap:8px 15px; }
+.ff-slider-item { gap:1px; }
+.ff-slider-head { font-size:10px; }
+.ff-slider-head output { font-size:11px; }
+.ff-slider-ends { font-size:9px; }
+/* Three equal chart columns, one budget forecast across the full bottom row. */
+.ff-dashboard-charts {
+  grid-template-columns:repeat(3,minmax(0,1fr));
+  grid-template-rows:minmax(0,1fr) minmax(155px,.43fr);
+  gap:9px;
+}
+.ff-dashboard-charts .ff-card { min-width:0; min-height:0; padding:9px 11px; }
+.ff-dashboard-charts .ff-card-head { margin-bottom:4px; }
+.ff-chart-pay,.ff-chart-hours,.ff-chart-hiring { grid-column:auto; }
+.ff-chart-budget { grid-column:1 / -1; }
+.ff-interval-container {
+  display:flex; flex-direction:column; flex:1 1 0; height:100%;
+  overflow:visible; min-height:0; padding:0;
+}
+.ff-interval-container .ff-legend { flex:none; gap:3px 7px; margin:0 0 5px; font-size:9px; }
+.ff-interval-container .ff-range-lane {
+  display:grid; grid-template-columns:minmax(0,140px) minmax(0,1fr);
+  align-items:center; min-height:0; flex:1 1 0; gap:5px; padding:0;
+}
+.ff-interval-container .ff-range-track { min-height:13px; height:100%; }
+.ff-dashboard-charts .ff-range-name {
+  padding:1px 3px; font-size:10px; line-height:1.08; white-space:normal;
+  overflow-wrap:anywhere; overflow:visible; text-overflow:clip;
+}
+.ff-interval-container .ff-range-axis { flex:none; margin:4px 0 0 145px; font-size:9px; }
+.ff-interval-container .ff-range-value { font-size:9px; }
+.ff-quarter-value { white-space:nowrap; color:#67588c; font-size:12px; font-weight:780; }
+.ff-quarter-controls { flex:none; display:grid; gap:0; }
+.ff-quarter-controls input[type=range] { width:100%; height:6px; min-height:6px; margin:12px 0 4px; }
+.ff-quarter-meta { display:flex; align-items:center; justify-content:space-between; gap:10px; color:#827789; font-size:9px; }
+.ff-quarter-meta .ff-action { padding:3px 9px; min-width:55px; }
+.ff-chart-hiring .ff-map-holder { flex:1 1 0; min-height:0; }
+.ff-chart-hiring .ff-footnote { font-size:9px; margin:2px 0 0; text-align:center; }
+.ff-budget-row {
+  flex:1 1 0; min-height:0; display:grid;
+  grid-template-columns:minmax(180px,.22fr) minmax(0,.78fr); gap:12px; align-items:stretch;
+}
+.ff-budget-row .ff-budget-summary {
+  flex-direction:column; align-items:flex-start; justify-content:center; gap:5px;
+  padding:8px 14px; border-radius:8px; background:#f7f4fa;
+}
+.ff-budget-row .ff-budget-summary #budget-industry { font-size:12px; font-weight:700; white-space:normal; overflow:visible; }
+.ff-budget-row .ff-budget-summary #budget-surplus { font-size:17px; }
+.ff-budget-row .ff-budget-viz { flex:1; overflow:hidden; min-height:0; }
+.ff-budget-row .ff-budget-viz svg { height:100%; width:100%; max-height:100%; }
+/* On smaller desktops, use the page scroll instead of clipping a full list. */
+@media (max-width:1100px), (max-height:710px) {
+  .fit-page { height:auto; overflow:auto; }
+  .fit-page main { height:auto; overflow:visible; }
+  .fit-page .ff-shell { height:auto; min-height:calc(100svh - 44px); overflow:visible; }
+  .ff-dashboard-charts { flex:none; grid-template-rows:minmax(340px,auto) 190px; }
+}
+@media(max-width:899px) {
+  .ff-dashboard-charts { grid-template-columns:repeat(2,minmax(0,1fr)); grid-template-rows:auto; }
+  .ff-chart-pay,.ff-chart-hours { grid-column:span 1; min-height:390px!important; }
+  .ff-chart-hiring,.ff-chart-budget { grid-column:1 / -1; min-height:290px!important; }
+  .ff-budget-row { min-height:170px; }
+}
+@media(max-width:699px) {
+  .ff-dashboard-charts { grid-template-columns:1fr; }
+  .ff-chart-pay,.ff-chart-hours,.ff-chart-hiring,.ff-chart-budget {
+    grid-column:1 / -1; min-height:360px!important;
+  }
+  .ff-budget-row { grid-template-columns:1fr; }
+  .ff-budget-row .ff-budget-summary { padding:6px 10px; }
+  .ff-budget-row .ff-budget-viz { min-height:175px; }
+  .ff-interval-container { overflow:visible; max-height:none; }
+}
