@@ -884,38 +884,83 @@ input[type="range"]:focus-visible { outline:2px solid #8074A8; outline-offset:5p
 }
 
 
-/* Budget card V3: remove the oversized left summary tile and give the
-   waterfall the entire horizontal drawing area. */
-.ff-dashboard-charts { grid-template-rows:minmax(0,1fr) minmax(190px,.52fr); }
-.ff-dashboard-charts .ff-chart-budget { display:flex; flex-direction:column; gap:0; }
-.ff-dashboard-charts .ff-chart-budget .ff-budget-head { flex:0 0 auto; margin:0; padding:0 2px; }
-.ff-dashboard-charts .ff-chart-budget .ff-budget-result-line {
-  flex:0 0 auto; display:flex; flex-direction:row; justify-content:space-between; align-items:center;
-  flex-wrap:wrap; min-height:38px; margin:4px 0 5px; padding:5px 8px;
-  border-top:1px solid #EEE9F3; border-bottom:1px solid #EEE9F3; gap:6px 20px;
+/* Budget V4 — compact left surplus panel + comfortably sized waterfall on the right. */
+.ff-dashboard-charts { grid-template-rows:minmax(0,1fr) minmax(194px,.52fr); }
+.ff-dashboard-charts .ff-chart-budget {
+  grid-column:1/-1; display:flex; flex-direction:column; min-height:0;
 }
-.ff-budget-result-line .ff-budget-industry { display:flex; align-items:baseline; gap:9px; min-width:0; max-width:66%; }
-.ff-budget-result-line .ff-budget-overline,
-.ff-budget-result-line .ff-budget-takehome span { color:#837A8D; font-size:10px; white-space:nowrap; }
-.ff-budget-result-line #budget-industry { color:#665777; font-size:12px; font-weight:710; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.ff-budget-result-line .ff-budget-takehome { display:flex; align-items:baseline; gap:10px; flex:none; }
-.ff-budget-result-line #budget-surplus { font-size:18px; color:#66588C; font-weight:800; font-variant-numeric:tabular-nums; line-height:1.2; }
-.ff-budget-result-line #budget-surplus.ff-budget-negative { color:#B95C73; }
+.ff-dashboard-charts .ff-chart-budget .ff-budget-head {
+  flex:0 0 auto; padding:0 2px; margin:0 0 7px;
+}
+.ff-dashboard-charts .ff-chart-budget .ff-budget-row {
+  flex:1 1 auto; width:100%; min-height:0;
+  display:grid; grid-template-columns:minmax(180px, min(22%,280px)) minmax(0,1fr);
+  column-gap:14px; align-items:stretch;
+}
+.ff-dashboard-charts .ff-chart-budget .ff-budget-summary {
+  min-width:0; padding:12px 14px; border-radius:9px;
+  background:#F5F1FA; display:flex; flex-direction:column;
+  align-items:flex-start; justify-content:center; gap:4px;
+}
+.ff-dashboard-charts .ff-budget-summary .ff-budget-overline,
+.ff-dashboard-charts .ff-budget-summary .ff-budget-outcome-label {
+  color:#83788C; font-size:10px; font-weight:550;
+}
+.ff-dashboard-charts .ff-budget-summary #budget-industry {
+  max-width:100%; font-size:12px; font-weight:700; color:#665B75;
+  white-space:normal; overflow-wrap:anywhere; line-height:1.35;
+}
+.ff-dashboard-charts .ff-budget-summary .ff-budget-outcome-label { margin-top:8px; }
+.ff-dashboard-charts .ff-budget-summary #budget-surplus {
+  color:#66588C; font:800 clamp(18px,1.7vw,26px)/1.15 Manrope,Inter,system-ui,sans-serif;
+  white-space:nowrap; font-variant-numeric:tabular-nums;
+}
+.ff-dashboard-charts .ff-budget-summary #budget-surplus.ff-budget-negative { color:#B95C73; }
 .ff-dashboard-charts .ff-chart-budget .ff-budget-viz {
-  flex:1 1 auto; display:block; min-height:0; width:100%; height:auto; overflow:hidden;
+  min-width:0; min-height:0; width:100%; height:100%;
+  display:block; overflow:hidden; position:relative;
 }
 .ff-dashboard-charts .ff-chart-budget .ff-budget-viz svg {
-  display:block; width:100%; height:100%; max-height:none; overflow:hidden;
+  display:block; width:100%; height:100%; max-height:none;
+  overflow:hidden; font-family:Inter,system-ui,sans-serif;
+}
+
+/* Hiring Opportunities — keep the original bubble visualization and restore the full
+   drawable height, reserving space for the bottom x axis and its caption. */
+.ff-dashboard-charts .ff-chart-hiring { overflow:hidden; }
+.ff-dashboard-charts .ff-chart-hiring .ff-map-holder {
+  display:block; flex:1 1 0; width:100%; height:100%;
+  min-width:0; min-height:0; overflow:hidden;
+}
+.ff-dashboard-charts .ff-chart-hiring .ff-map-holder svg {
+  display:block; height:100%; width:100%; max-height:none;
+  overflow:hidden;
+}
+.ff-dashboard-charts .ff-chart-hiring .ff-footnote {
+  flex:0 0 auto; margin:2px 0 0; line-height:1.2;
 }
 .ff-quarter-meta { justify-content:space-between; }
-@media(max-width:1100px), (max-height:710px) {
-  .ff-dashboard-charts { grid-template-rows:minmax(340px,auto) minmax(200px,auto); }
-  .ff-chart-budget { min-height:205px; }
+
+@media (max-width:1100px), (max-height:710px) {
+  .ff-dashboard-charts { grid-template-rows:minmax(380px,auto) minmax(208px,auto); }
+  .ff-dashboard-charts .ff-chart-hiring { min-height:390px; }
+  .ff-dashboard-charts .ff-chart-budget { min-height:208px; }
+}
+@media(max-width:899px) {
+  .ff-dashboard-charts { grid-template-rows:auto; }
+  .ff-dashboard-charts .ff-chart-hiring { min-height:345px!important; }
+  .ff-dashboard-charts .ff-chart-budget { min-height:255px!important; }
 }
 @media(max-width:699px) {
-  .ff-dashboard-charts .ff-chart-budget { min-height:250px!important; }
-  .ff-budget-result-line .ff-budget-industry { max-width:100%; }
-  .ff-dashboard-charts .ff-chart-budget .ff-budget-result-line { align-items:flex-start; }
-  .ff-budget-result-line .ff-budget-takehome { gap:7px; }
-  .ff-dashboard-charts .ff-chart-budget .ff-budget-viz { min-height:150px; }
+  .ff-dashboard-charts .ff-chart-budget .ff-budget-row {
+    grid-template-columns:1fr; row-gap:10px;
+  }
+  .ff-dashboard-charts .ff-chart-budget .ff-budget-summary {
+    padding:9px 12px; gap:2px;
+  }
+  .ff-dashboard-charts .ff-chart-budget .ff-budget-summary #budget-surplus {
+    font-size:21px;
+  }
+  .ff-dashboard-charts .ff-chart-budget .ff-budget-viz { min-height:180px; }
+  .ff-dashboard-charts .ff-chart-budget { min-height:355px!important; }
 }
