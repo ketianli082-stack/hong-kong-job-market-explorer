@@ -903,7 +903,7 @@ function switchChapter(name, scroll=false, preserveHash=false) {
   });
   if (!preserveHash) history.replaceState(null, "", "#" + name);
   requestAnimationFrame(() => renderers[name]());
-  if (scroll) document.querySelector("#story").scrollIntoView({ behavior: "smooth", block: "start" });
+  if (scroll) window.scrollTo(0, 0);
 }
 function populateSelects(){const years=[...new Set(data.totalEmployment.map(d=>d.year))].filter(v=>data.employmentStatus.some(row=>row.year===v)&&data.occupationMix.some(row=>row.year===v)).sort((a,b)=>a-b);const year=$("#composition-year");year.min=years[0];year.max=years.at(-1);year.value=years.at(-1);syncYearOutput("#composition-year");}
 function setupIndustryYear() {
@@ -965,23 +965,35 @@ function setup() {
   populateSelects();
   setupIndustryYear();
   setupParticipationControls();
-  $("[data-chapter]").forEach(button => button.addEventListener("click", () => switchChapter(button.dataset.chapter, true)));
+  $("[data-chapter]").forEach(button => button.addEventListener("click", () => switchChapter(button.dataset.chapter)));
   const begin = $("#start-exploring");
-  begin.addEventListener("click", event => { event.preventDefault(); switchChapter("structure", true); });
+  begin.addEventListener("click", event => {
+    event.preventDefault();
+    document.body.classList.remove("is-landing");
+    switchChapter("structure");
+    window.scrollTo(0, 0);
+  });
   $("#industry-share-reset").addEventListener("click", () => { selectedIndustryShare = null; renderIndustryShare(); });
   $("#composition-year").addEventListener("input", () => renderers.structure());
   $("#risk-year").addEventListener("input", () => setRiskYear(riskYear()));
   $("#gender-employment-year").addEventListener("input", event => event.target.dispatchEvent(new Event("change")));
   const hash = location.hash.replace("#", "");
-  if (Object.hasOwn(renderers, hash)) activeChapter = hash;
-  const showingLanding = !hash || hash === "landing";
-  switchChapter(activeChapter, false, showingLanding);
-  if (!showingLanding) requestAnimationFrame(() =>
-    document.querySelector("#story").scrollIntoView({behavior:"instant", block:"start"}));
+  if (Object.hasOwn(renderers, hash)) {
+    document.body.classList.remove("is-landing");
+    switchChapter(hash, false, true);
+  } else {
+    document.body.classList.add("is-landing");
+  }
   window.addEventListener("hashchange", () => {
     const next = location.hash.slice(1);
-    if (Object.hasOwn(renderers,next)) switchChapter(next,true,true);
-    else if (next==="landing") document.querySelector("#landing").scrollIntoView({behavior:"smooth"});
+    if (Object.hasOwn(renderers,next)) {
+      document.body.classList.remove("is-landing");
+      switchChapter(next, false, true);
+      window.scrollTo(0, 0);
+    } else if (next === "landing") {
+      document.body.classList.add("is-landing");
+      window.scrollTo(0, 0);
+    }
   });
   let timer;
   addEventListener("resize", () => { clearTimeout(timer); timer = setTimeout(() => renderers[activeChapter](), 160); });
