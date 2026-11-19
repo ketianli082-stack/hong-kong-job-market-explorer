@@ -5,6 +5,7 @@
 - [在线预览（跟随 main 最新版本）](https://raw.githack.com/ketianli082-stack/hong-kong-job-market-explorer/main/index.html)
 
 > 预览由第三方 raw.githack.com 提供，通常会在 GitHub 更新后数分钟内刷新；仓库尚未启用 GitHub Pages。
+
 - Page 01 — Explore：香港就业市场数据故事
 - Page 02 — Find Your Fit：求职选择与行业比较工具
 
@@ -22,7 +23,7 @@
 
 ## 叶同学本轮更新（2026-11-18）
 
-修改已提交至 `page1-ye`。本节记录该分支的功能，在线预览的发布状态需另行确认。
+修改已从 `page1-ye` 合并至 `main`。本节记录本轮功能更新；在线预览链接会读取 `main` 的代码。
 
 ### Page 01 — Explore
 
