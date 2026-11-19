@@ -37,6 +37,7 @@
       <section class="chapter-panel" id="chapter-risk" data-panel="risk" role="tabpanel" aria-labelledby="tab-risk" hidden>
         <header class="chapter-heading"><span>02 · RISK &amp; RESILIENCE</span><h2>How Secure Is Employment?</h2><p>Long-term unemployment, crisis recovery and group-level exposure show where employment is most vulnerable.</p></header>
         <div class="dashboard-grid risk-grid">
+          <input type="hidden" id="risk-age" value="15 - 19">
           <figure class="viz-card primary-viz annual-unemployment-card"><div class="viz-heading"><div><h3>Annual unemployment rate</h3><p>Unemployment rate (%)</p></div><label class="year-slider">Year <input id="risk-year" type="range" min="1985" max="2025" step="1" value="2025"><output for="risk-year">2025</output></label></div><div id="unemployment-chart" class="chart h-250"></div></figure>
           <figure class="viz-card"><div class="viz-heading"><div><h3>Unemployment by education</h3><p>Click a year to compare age groups</p></div></div><ul id="education-legend" class="education-legend" aria-label="Education groups"></ul><div id="education-chart" class="chart education-chart-compact"></div></figure>
           <figure class="viz-card"><div class="viz-heading"><div><h3>Unemployment by age</h3><p>Click an age group to explore its history</p></div><span id="risk-age-year"></span></div><div id="risk-group-chart" class="chart h-300"></div></figure>
