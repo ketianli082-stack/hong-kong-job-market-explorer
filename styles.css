@@ -522,3 +522,141 @@ html[lang="zh-CN"] .ff-field { line-height: 1.55; }
   .language-toggle { padding: 2px; }
   .language-toggle button { min-width: 30px; padding: 4px 6px; font-size: 11px; }
 }
+
+/* 2026-11 one-screen career decision dashboard; shared Explore chapter refinements. */
+@media (min-width: 900px) and (min-height: 600px) {
+  .explore-page .story-workspace {
+    grid-template-columns: 156px minmax(0, 1fr);
+    padding-left: 16px;
+  }
+  .explore-page .chapter-tabs {
+    position: sticky; top: 8px; align-self: start; display:flex;
+    border-right: 1px solid #e3ddea; padding-right: 7px;
+  }
+  .explore-page .chapter-tabs button { min-height: 70px; padding: 10px 9px; }
+  .explore-page .chapter-tabs button strong { font-size: 12px; line-height: 1.35; }
+  .explore-page .chapter-nav-toggle { display: none !important; }
+  .explore-page #chapter-risk .risk-grid > figure:nth-child(3) { grid-column: 1 / -1; }
+}
+.explore-page .year-slider {
+  display: inline-flex; align-items: center; gap: 7px; min-width: 175px;
+  font-size: 12px; color: var(--muted); white-space: nowrap;
+}
+.explore-page .year-slider input[type="range"] { flex: 1; min-width: 86px; accent-color: #8074a8; cursor: pointer; }
+.explore-page .year-slider output { min-width: 36px; font-weight: 750; color: #62568c; font-variant-numeric: tabular-nums; text-align: right; }
+.explore-page #chapter-risk .risk-grid > figure:nth-child(3) .chart { min-height: 0; }
+@media (max-width: 899px) {
+  .explore-page .risk-grid > figure:nth-child(3) { grid-column: auto; }
+}
+
+/* Find Your Fit: dense, coordinated dashboard with local scrolling only. */
+.fit-page .ff-shell { max-width: none; padding: 12px 18px 16px; }
+.ff-topline {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: 14px; min-height: 34px; flex: none;
+}
+.ff-topline .ff-eyebrow { font-size: 10px; line-height: 1.2; margin: 0; }
+.ff-topline h1 { margin: 2px 0 0; font: 750 20px/1.2 Manrope,Inter,sans-serif; letter-spacing: -.025em; }
+.ff-match-total { display: flex; align-items: baseline; gap: 7px; white-space: nowrap; }
+.ff-match-total strong { font-size: 23px; font-family: Manrope,Inter,sans-serif; color: #62568c; }
+.ff-match-total span { color: var(--muted); font-size: 12px; }
+.ff-preferences {
+  flex: none; margin: 8px 0 9px; padding: 10px 14px 8px;
+  background: #f2eef8; border: 1px solid #e6deef; border-radius: 12px;
+}
+.ff-preferences-head { display: flex; justify-content: space-between; align-items: center; }
+.ff-preferences-head h2 { margin: 0; font: 750 13px/1.35 Manrope,Inter,sans-serif; color: #443957; }
+.ff-action {
+  font: 650 11px/1.2 Inter,system-ui,sans-serif; color: #62568c;
+  border: 1px solid #d7cfe5; background: #fff; cursor: pointer;
+  border-radius: 6px; padding: 5px 8px; white-space: nowrap;
+}
+.ff-action:hover { background: #e5dff2; }
+.ff-slider-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 10px 18px; padding-top: 6px; }
+.ff-slider-item { display: flex; flex-direction: column; min-width: 0; gap: 3px; }
+.ff-slider-head,.ff-slider-ends { display: flex; justify-content: space-between; align-items: center; gap: 5px; font-variant-numeric: tabular-nums; }
+.ff-slider-head { font-size: 11px; font-weight: 670; color: #5b516b; }
+.ff-slider-head output { color: #51436e; font-size: 12px; font-weight: 800; white-space: nowrap; }
+.ff-slider-item input[type=range] { width:100%; min-width:0; margin:3px 0 0; accent-color: #8174a8; cursor:pointer; }
+.ff-slider-ends { font-size: 9px; color:#797083; }
+.ff-filter-note { display: flex; justify-content:space-between; gap:12px; margin-top:5px; font-size:10px; color:#756c80; }
+.ff-filter-note span:last-child { color:#965273; font-weight:650; }
+.ff-dashboard-charts {
+  display: grid; grid-template-columns: repeat(6,minmax(0,1fr));
+  grid-template-rows: minmax(0,1.08fr) minmax(0,1fr);
+  gap: 10px; flex: 1 1 auto; min-height: 0;
+}
+.ff-dashboard-charts .ff-card { position:relative; overflow:visible; padding: 10px 11px; min-height:0; }
+.ff-dashboard-charts .ff-card-head { flex: none; gap:5px; margin-bottom: 7px; }
+.ff-dashboard-charts .ff-card h3 { font-size: 14px; line-height: 1.25; }
+.ff-dashboard-charts .ff-card-head p { margin: 3px 0 0; font-size: 10px; color: var(--muted); }
+.ff-chart-pay,.ff-chart-hours { grid-column: span 3; }
+.ff-chart-hiring,.ff-chart-occupation,.ff-chart-budget { grid-column: span 2; }
+.ff-dashboard-charts .ff-card { display:flex; flex-direction:column; }
+.ff-data-year { font-size: 11px; font-weight:750; color: #776799; }
+.ff-interval-container {
+  flex:1; min-height:0; overflow-y:auto; overflow-x:hidden; padding-right:5px;
+  overscroll-behavior:contain; scrollbar-width:thin;
+}
+.ff-interval-container .ff-legend { font-size:10px; margin-bottom:5px; }
+.ff-interval-container .ff-range-lane {
+  grid-template-columns: minmax(0,148px) minmax(0,1fr);
+  gap: 5px; min-height: 31px;
+}
+.ff-dashboard-charts .ff-range-name {
+  display:block; min-width:0; width:100%; margin:0; padding:2px 3px;
+  border:0; border-radius:5px; background:transparent; color:#544b60;
+  cursor:pointer; text-align:left; font: 600 11px/1.25 Inter,system-ui,sans-serif;
+}
+.ff-dashboard-charts .ff-range-name:hover, .ff-dashboard-charts .ff-range-name[aria-pressed=true] {
+  background:#ede6f6; color:#51406f;
+}
+.ff-interval-container .ff-range-axis { margin-left:153px; }
+.ff-interval-container .ff-range-track { min-height:25px; }
+.ff-interval-container .ff-range-value { font-size:9px; }
+.ff-map-holder,.ff-budget-viz { flex:1 1 0; min-height:0; display:grid; place-items:center; overflow:hidden; }
+.ff-map-holder svg,.ff-budget-viz svg { max-height:100%; height:100%; width:100%; overflow:visible; }
+.ff-footnote { flex:none; font-size:9px; color:var(--muted); margin:2px 0 0; }
+.ff-occupation-list { overflow-y:auto; scrollbar-width:thin; overscroll-behavior:contain; flex:1; min-height:0; }
+.ff-occupation-row { display:grid; grid-template-columns:minmax(80px,1.2fr) minmax(40px,.9fr) auto; align-items:center; gap:6px; padding:5px 0; }
+.ff-occupation-label { color:#5e536c; font-size:10px; line-height:1.25; }
+.ff-occupation-track { height:11px; background:#f0ecf4; border-radius:4px; overflow:hidden; }
+.ff-occupation-track span { display:block; height:100%; background:#9b93c9; border-radius:4px; }
+.ff-occupation-row strong { font-size:10px; color:#62568c; text-align:right; font-variant-numeric:tabular-nums; }
+.ff-budget-summary { display:flex; align-items:baseline; justify-content:space-between; flex-wrap:wrap; gap:5px; color:#6d6478; font-size:10px; }
+.ff-budget-summary #budget-industry { min-width:0; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ff-budget-summary #budget-surplus { font-size:12px; color:#62568c; font-weight:800; white-space:nowrap; }
+.ff-budget-settings {
+  position:fixed; top:56px; right:18px; z-index:99; width:min(360px,calc(100vw - 36px));
+  border:1px solid #d9d1e4; border-radius:11px; background:#fff; box-shadow:0 12px 44px #45375935;
+  padding:15px; display:grid; gap:13px;
+}
+.ff-budget-settings[hidden] { display:none; }
+.ff-budget-settings p { font-size:10px; color:var(--muted); margin:0; }
+@media (min-width: 900px) and (min-height: 600px) {
+  .fit-page { height:100dvh; overflow:hidden; }
+  .fit-page .topbar { height:44px; }
+  .fit-page main { height:calc(100dvh - 44px); min-height:0; overflow:hidden; }
+  .fit-page .ff-shell { height:100%; display:flex; flex-direction:column; min-height:0; overflow:hidden; }
+}
+@media (max-width: 1199px) {
+  .ff-slider-grid { grid-template-columns:repeat(2,minmax(0,1fr)); }
+}
+@media (max-width: 899px), (max-height: 599px) {
+  .fit-page { height:auto; overflow:auto; }
+  .fit-page main { height:auto; overflow:visible; }
+  .fit-page .ff-shell { height:auto; overflow:visible; }
+  .ff-dashboard-charts { grid-template-rows:auto; flex:none; }
+  .ff-chart-pay,.ff-chart-hours { min-height:255px!important; }
+  .ff-chart-hiring,.ff-chart-occupation,.ff-chart-budget { min-height:260px!important; }
+}
+@media (max-width: 699px) {
+  .fit-page .ff-shell { padding: 12px; }
+  .ff-topline h1 { font-size:18px; }
+  .ff-slider-grid { grid-template-columns:1fr; }
+  .ff-dashboard-charts { grid-template-columns:1fr; }
+  .ff-dashboard-charts .ff-card { grid-column:1; }
+  .ff-interval-container { max-height:310px; }
+  .ff-chart-pay,.ff-chart-hours { min-height:260px; }
+  .ff-budget-settings { right:10px; top:85px; }
+}
