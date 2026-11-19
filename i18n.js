@@ -5,6 +5,9 @@
 
   const storageKey = "hkjm-language";
   const full = {
+    "Selected industry": "当前行业",
+    "Estimated monthly surplus": "预计每月结余",
+
 
     "HONG KONG JOB MARKET · DATA STORY": "香港就业市场 · 数据故事",
     "Introduction to Hong Kong job market": "香港就业市场引言",
