@@ -32,6 +32,8 @@
   ];
   const state = {
     selected: [],
+    focus: null,
+    adjustment: "",
     vacancyMode: "count",
     payYear: 2025,
     startYear: 2016,
@@ -113,27 +115,107 @@
     };
   }
 
-  function fitContext() {
-    const chosen = fitData.demand.filter(row => !state.selected.length || state.selected.includes(row.id));
-    const active = new Set(chosen.map(row => row.id));
-    const rows = fitData.pay
-      .filter(row => row.year === state.payYear && active.has(row.id))
-      .map(candidate);
-    const ranked = rows.slice().sort((a, b) =>
-      Number(b.match) - Number(a.match)
-      || Number(a.missing) - Number(b.missing)
-      || a.issues.length - b.issues.length
-      || (b.surplus ?? -Infinity) - (a.surplus ?? -Infinity)
-      || a.name.localeCompare(b.name, "en"));
-    return {
-      chosen,
-      rows,
-      ranked,
-      matched: ranked.filter(row => row.match),
-      budget: state.offer - state.rent - state.living - state.deduct,
-    };
+
+  function validYearRows() {
+    return fitData.pay.filter(row => row.year === state.payYear &&
+      Number.isFinite(row.pay50) && Number.isFinite(row.hours50));
   }
 
+  function matches(row) {
+    return row.pay50 >= state.targetPay - .001 &&
+      row.hours50 <= state.maxHours + .001 &&
+      row.pay50 - expensesTotal() >= state.targetSurplus - .001;
+  }
+  function expensesTotal() { return state.rent + state.living + state.deduct; }
+
+  function fitContext() {
+    const matched = validYearRows().filter(matches).map(candidate)
+      .sort((a, b) => (b.pay50 - a.pay50) || a.name.localeCompare(b.name));
+    if (!matched.some(row => row.name === state.focus)) state.focus = null;
+    const feature = matched.find(row => row.name === state.focus) || matched[0] || null;
+    const broad = new Set(matched.map(row => row.id));
+    const chosen = fitData.demand.filter(row => broad.has(row.id));
+    return { chosen, rows: matched, matched, featured: feature,
+      budget: feature ? feature.pay50 - expensesTotal() : 0 };
+  }
+
+  function reconcileConstraints() {
+    if (validYearRows().some(matches)) return;
+    const rows = validYearRows();
+    if (!rows.length) return;
+    const desired = { pay: state.targetPay, hours: state.maxHours, surplus: state.targetSurplus };
+    const best = rows.slice().sort((a, b) => {
+      const penalty = row =>
+        Math.max(0, desired.pay - row.pay50) / 10000 +
+        Math.max(0, row.hours50 - desired.hours) / 10 +
+        Math.max(0, desired.surplus - (row.pay50 - expensesTotal())) / 10000;
+      return penalty(a) - penalty(b);
+    })[0];
+    state.targetPay = Math.min(state.targetPay, Math.floor(best.pay50 / 100) * 100);
+    state.maxHours = Math.max(state.maxHours, Math.ceil(best.hours50 * 10) / 10);
+    state.targetSurplus = Math.min(state.targetSurplus, Math.floor((best.pay50 - expensesTotal()) / 100) * 100);
+    state.adjustment = "Criteria adjusted to keep at least one matching industry.";
+  }
+
+  function sliderLimits(key) {
+    const rows = validYearRows();
+    const cost = expensesTotal();
+    if (key === "targetPay") {
+      const eligible = rows.filter(row => row.hours50 <= state.maxHours + .001 && row.pay50 - cost >= state.targetSurplus - .001);
+      return { min: Math.floor(Math.min(...rows.map(r => r.pay50)) / 100) * 100,
+        max: Math.floor(Math.max(...eligible.map(r => r.pay50)) / 100) * 100, step: 100 };
+    }
+    if (key === "maxHours") {
+      const eligible = rows.filter(row => row.pay50 >= state.targetPay - .001 && row.pay50 - cost >= state.targetSurplus - .001);
+      return { min: Math.ceil(Math.min(...eligible.map(r => r.hours50)) * 10) / 10,
+        max: Math.ceil(Math.max(...rows.map(r => r.hours50)) * 10) / 10, step: .1 };
+    }
+    if (key === "targetSurplus") {
+      const eligible = rows.filter(row => row.pay50 >= state.targetPay - .001 && row.hours50 <= state.maxHours + .001);
+      const max = Math.floor(Math.max(...eligible.map(r => r.pay50 - cost)) / 100) * 100;
+      return { min: Math.min(0, max), max, step: 100 };
+    }
+    const years = [...new Set(fitData.pay.map(row => row.year))].sort((a, b) => a - b);
+    return { min: years[0], max: years.at(-1), step: 1 };
+  }
+
+  function formatValue(key, value) {
+    if (key === "maxHours") return `${Number(value).toFixed(1)} h`;
+    if (key === "payYear") return String(value);
+    return money(Number(value));
+  }
+
+  function filterSlider(key, heading) {
+    const lim = sliderLimits(key);
+    const val = state[key];
+    return `<label class="ff-slider-item">
+      <span class="ff-slider-head"><span>${heading}</span><output for="filter-${key}" data-output="${key}">${formatValue(key, val)}</output></span>
+      <input id="filter-${key}" type="range" data-control="${key}" min="${lim.min}" max="${lim.max}" step="${lim.step}" value="${val}" aria-label="${heading}">
+      <span class="ff-slider-ends"><span data-min="${key}">${formatValue(key, lim.min)}</span><span data-max="${key}">${formatValue(key, lim.max)}</span></span>
+    </label>`;
+  }
+
+  function updateSliderLimits() {
+    ["targetPay", "maxHours", "targetSurplus", "payYear"].forEach(key => {
+      const lim = sliderLimits(key);
+      const slider = document.getElementById("filter-" + key);
+      if (!slider) return;
+      slider.min = lim.min; slider.max = lim.max; slider.step = lim.step;
+      slider.value = state[key];
+      const out = document.querySelector('[data-output="' + key + '"]');
+      const min = document.querySelector('[data-min="' + key + '"]');
+      const max = document.querySelector('[data-max="' + key + '"]');
+      if (out) out.textContent = formatValue(key, state[key]);
+      if (min) min.textContent = formatValue(key, lim.min);
+      if (max) max.textContent = formatValue(key, lim.max);
+    });
+    ["rent", "living", "deduct"].forEach(key => {
+      const inp = document.querySelector('[data-control="' + key + '"]');
+      if (inp) inp.value = state[key];
+      const out = document.querySelector('[data-output="' + key + '"]');
+      if (out) out.textContent = money(state[key]);
+    });
+  }
   const legend = entries => `<div class="ff-legend">${entries.map(([name, color]) =>
     `<span><i style="background:${color}"></i>${esc(name)}</span>`).join("")}</div>`;
 
@@ -175,7 +257,7 @@
 
   function intervals(rows, type) {
     const median = type === "pay" ? "pay50" : "hours50";
-    const ordered = rows.slice().sort((a, b) => (b[median] ?? -Infinity) - (a[median] ?? -Infinity));
+    const ordered = rows.slice();
     const isPay = type === "pay";
     const target = isPay ? state.targetPay : state.maxHours;
     const step = isPay ? 10000 : 10;
@@ -190,10 +272,10 @@
       ${ordered.map(row => {
         const a = row[`${type}25`], m = row[median], b = row[`${type}75`];
         const tip = `${row.name} · ${[a, m, b].map(number).join(" / ")} · ${isPay ? "HKD/month" : "hours/week"}`;
-        return `<div class="ff-range-lane"><span class="ff-range-name">${esc(row.name)}</span><div class="ff-range-track">
+        return `<div class="ff-range-lane"><button type="button" class="ff-range-name" data-action="focusIndustry" data-value="${esc(row.name)}" aria-pressed="${state.focus === row.name}">${esc(row.name)}</button><div class="ff-range-track">
           <span class="ff-range-ref" style="left:${position(target)}%"></span>
           ${[a, b].every(Number.isFinite) ? `<span class="ff-range-band" style="left:${position(a)}%;width:${position(b) - position(a)}%" data-tip="${esc(tip)}"></span>` : ""}
-          ${Number.isFinite(m) ? `<button type="button" class="ff-range-point" style="left:${position(m)}%" data-tip="${esc(tip)}" aria-label="${esc(tip + (isPay ? " · Use in budget" : ""))}"${isPay ? ` data-action="offerMedian" data-value="${m}"` : ""}></button>
+          ${Number.isFinite(m) ? `<button type="button" class="ff-range-point" style="left:${position(m)}%" data-tip="${esc(tip)}" aria-label="${esc(tip + (isPay ? " · Use in budget" : ""))}"${isPay ? ` data-action="focusIndustry" data-value="${esc(row.name)}"` : ""}></button>
             <span class="ff-range-value${position(m) > 68 ? " left" : ""}" style="left:${position(m)}%">${number(m)}</span>` : `<span class="ff-range-value">No data</span>`}
         </div></div>`;
       }).join("")}
@@ -251,9 +333,10 @@
       + text(axis.x(1.7) + 5, axis.top + 7, "Overall 1.7%", "start");
     const max = Math.max(...values.map(row => row.openings));
     values.slice().sort((a, b) => b.openings - a.openings).forEach(row => {
-      const selected = state.selected.includes(row.id);
+      const current = fitContext();
+      const selected = !state.focus || current.featured?.id === row.id;
       const tip = `${row.name}\nVacancy rate ${percent(row.rate * 100)} · ${number(row.openings)} vacancies\nEmployment YoY ${percent(row.yoy * 100)}`;
-      content += `<circle cx="${axis.x(row.rate * 100)}" cy="${axis.y(row.yoy * 100)}" r="${Math.sqrt(row.openings / max) * 22}" fill="${row.yoy >= 0 ? "#62568C" : "#D7647D"}" opacity="${state.selected.length && !selected ? .31 : .86}" class="ff-bubble" data-tip="${esc(tip)}" data-action="bubble" data-value="${esc(row.id)}" aria-label="${esc(tip)}" aria-pressed="${selected}"/>`;
+      content += `<circle cx="${axis.x(row.rate * 100)}" cy="${axis.y(row.yoy * 100)}" r="${Math.sqrt(row.openings / max) * 22}" fill="${row.yoy >= 0 ? "#62568C" : "#D7647D"}" opacity="${selected ? .86 : .22}" class="ff-bubble" data-tip="${esc(tip)}" data-action="bubble" data-value="${esc(row.id)}" aria-label="${esc(tip)}" aria-pressed="${Boolean(state.focus && selected)}"/>`;
     });
     return svg(w, height, "Hiring opportunities. X: vacancy rate. Y: year-on-year employment change.", content);
   }
@@ -356,144 +439,119 @@
     return Number(period.slice(0, 4)) + (Number(period.slice(-1)) - 1) / 4;
   }
 
+
+  function budgetSettings() {
+    const config = [
+      ["rent", "Monthly rent", 3000, 22000, 500],
+      ["living", "Living and transport", 2000, 16000, 500],
+      ["deduct", "Set-aside for deductions", 0, 6000, 500],
+    ];
+    return `<div class="ff-budget-settings" id="budget-settings" hidden>
+      ${config.map(([key, title, min, max, step]) => `<label class="ff-slider-item">
+        <span class="ff-slider-head"><span>${title}</span><output data-output="${key}">${money(state[key])}</output></span>
+        <input type="range" data-control="${key}" min="${min}" max="${max}" step="${step}" value="${state[key]}">
+        <span class="ff-slider-ends"><span>${money(min)}</span><span>${money(max)}</span></span>
+      </label>`).join("")}
+      <p>Budget assumptions only; actual deductions depend on your contract.</p>
+    </div>`;
+  }
+
   function render() {
     const context = fitContext();
-    const { chosen, rows, ranked, matched, budget } = context;
-    const status = matched.length
-      ? `Investigate first: ${list(matched.map(row => row.name))}`
-      : "No options meet all three criteria.";
-    const selection = chosen.length === fitData.demand.length
-      ? `All ${fitData.demand.length} broad industries`
-      : list(chosen.map(row => row.name));
-    const { end, sets } = historySets(chosen);
-    const histValues = sets.flatMap(set => set.points.map(point => point[1])).filter(Number.isFinite);
-    const histMin = Math.floor(Math.min(100, ...histValues) / 10) * 10;
-    const histMax = Math.ceil(Math.max(110, ...histValues) / 10) * 10;
-    const histYears = Array.from({ length: Math.floor(end) - state.startYear + 1 }, (_, index) => state.startYear + index)
-      .filter((year, index, all) => all.length <= 6 || index % 2 === 0 || index === all.length - 1);
-    const industryOptions = fitData.demand.map(row =>
-      `<option value="${esc(row.id)}"${state.selected.length === 1 && state.selected[0] === row.id ? " selected" : ""}>${esc(row.name)}</option>`).join("");
-
-    $("#fit-app").innerHTML = `<header class="ff-chapter">
-      <div class="ff-eyebrow">04 / EXPLORE JOB OPTIONS</div>
-      <h1>Which options fit you?</h1>
-      <p>Check where the vacancies are, then test your pay, hours and budget assumptions. Change one condition to see what enters the shortlist and what still needs checking.</p>
-    </header>
-    <div class="ff-stats">
-      <div class="ff-stat"><strong>${rows.length}</strong><span>Industry segments in view</span></div>
-      <div class="ff-stat"><strong>${matched.length}</strong><span>Meet pay, hours and surplus criteria</span></div>
-      <div class="ff-stat"><strong>${money(budget)}</strong><span>Monthly surplus with the current offer</span></div>
-    </div>
-    <div class="ff-decision" aria-live="polite"><strong>${esc(status)}</strong>
-      <p>Showing: ${esc(selection)}. Shortlist estimates use each industry's median pay. The budget chart uses the offer you enter.</p>
-      <div class="ff-chip-row">${chip("case", "example", "Load example")}${chip("resetIndustries", "all", "Show all industries")}</div>
-    </div>
-    <section class="ff-section" aria-labelledby="find-heading">
-      <header class="ff-subhead"><h2 id="find-heading">Where are the vacancies?</h2></header>
-      <div class="ff-controls">
-        <label class="ff-field">Select one industry<select id="industry" data-control="industry">
-          <option value="all"${!state.selected.length ? " selected" : ""}>All industries</option>
-          ${state.selected.length > 1 ? `<option selected disabled>Multiple industries selected</option>` : ""}
-          ${industryOptions}
-        </select></label>
-        <div class="ff-chip-row" role="group" aria-label="Select multiple industries">${fitData.demand.map(row => chip("toggleIndustry", row.id, row.name, state.selected.includes(row.id))).join("")}</div>
+    const count = context.matched.length;
+    $("#fit-app").innerHTML = `
+      <div class="ff-topline">
+        <div><span class="ff-eyebrow">FIND YOUR FIT · CAREER DECISION DASHBOARD</span>
+          <h1>Which options fit you?</h1></div>
+        <div class="ff-match-total"><strong id="match-total">${count}</strong><span>matching industries</span></div>
       </div>
-      <div class="ff-grid">
-        ${figure({
-          id: "map",
-          title: "Hiring opportunities",
-          unit: "2026 Q2 · Vacancy rate (x) · Employment change year on year (y)",
-          body: `<div id="map-viz"></div>`,
-          note: "Bubble area shows vacancy count. The horizontal line marks zero growth. The vertical line marks the survey-wide vacancy rate of 1.7%. Select a bubble, or Ctrl/Cmd-click to add industries. The linked charts and shortlist follow your selection.",
-          key: legend([["Employment up", "#62568C"], ["Employment down", "#D7647D"]]),
-        })}
-        ${figure({
-          id: "vacancies",
-          title: "Vacancies by industry and occupation",
-          unit: "2026 Q2 · Broad industries and nine occupation groups",
-          control: `<label class="ff-field ff-inline-field">Show in cells<select id="vacancyMode" data-control="vacancyMode"><option value="count"${state.vacancyMode === "count" ? " selected" : ""}>Vacancy count</option><option value="share"${state.vacancyMode === "share" ? " selected" : ""}>Share within industry</option></select></label>`,
-          body: heatTable(occupationOrder, chosen),
-          note: "Count shows how many vacancies there are. Share shows the mix of vacancies within an industry. Select a cell to filter by its industry.",
-        })}
+      <section class="ff-preferences" aria-label="Your Career Preferences">
+        <header class="ff-preferences-head"><h2>Your Career Preferences</h2><button type="button" class="ff-action" data-action="reset">Reset</button></header>
+        <div class="ff-slider-grid">
+          ${filterSlider("targetPay", "Minimum monthly pay")}
+          ${filterSlider("maxHours", "Maximum weekly hours")}
+          ${filterSlider("targetSurplus", "Target monthly surplus")}
+          ${filterSlider("payYear", "Pay reference year")}
+        </div>
+        <div class="ff-filter-note"><span id="ff-match-explain">Only matching industries appear below.</span><span id="ff-adjustment" role="status">${esc(state.adjustment)}</span></div>
+      </section>
+      <div class="ff-dashboard-charts">
+        <figure class="ff-card ff-chart-pay">
+          <div class="ff-card-head"><div><h3>Monthly Pay Range</h3><p>25th–75th percentile · median · HKD/month</p></div><span class="ff-data-year" data-year-label>${state.payYear}</span></div>
+          <div class="ff-interval-container" id="pay-range-viz"></div>
+        </figure>
+        <figure class="ff-card ff-chart-hours">
+          <div class="ff-card-head"><div><h3>Weekly Hours Range</h3><p>25th–75th percentile · median · hours/week</p></div><span class="ff-data-year" data-year-label>${state.payYear}</span></div>
+          <div class="ff-interval-container" id="hours-range-viz"></div>
+        </figure>
+        <figure class="ff-card ff-chart-hiring">
+          <div class="ff-card-head"><div><h3>Hiring Opportunities</h3><p>2026 Q2 · vacancy rate vs. employment YoY</p></div></div>
+          <div class="ff-map-holder" id="map-viz"></div>
+          <p class="ff-footnote">Bubble size = vacancies. Select to focus an industry.</p>
+        </figure>
+        <figure class="ff-card ff-chart-occupation">
+          <div class="ff-card-head"><div><h3>Occupation Demand</h3><p>2026 Q2 · parent-industry vacancy counts</p></div></div>
+          <div class="ff-occupation-list" id="occupation-viz"></div>
+        </figure>
+        <figure class="ff-card ff-chart-budget">
+          <div class="ff-card-head"><div><h3>Monthly Budget Forecast</h3><p>Median pay minus estimated expenses · HKD</p></div>
+            <button type="button" class="ff-action" data-action="expenses" aria-controls="budget-settings" aria-expanded="false">Edit expenses</button></div>
+          <div class="ff-budget-summary"><span id="budget-industry"></span><strong id="budget-surplus"></strong></div>
+          <div class="ff-budget-viz" id="budget-viz"></div>
+          ${budgetSettings()}
+        </figure>
       </div>
-    </section>
-    <section class="ff-section" aria-labelledby="conditions-heading">
-      <header class="ff-subhead"><h2 id="conditions-heading">Would the pay and hours work for me?</h2></header>
-      <form class="ff-controls" id="targets-form">
-        ${selectControl("payYear", "Pay reference year", Array.from({ length: 10 }, (_, index) => 2025 - index))}
-        ${numberField("targetPay", "Target monthly pay (HKD)", state.targetPay, 500)}
-        ${numberField("maxHours", "Weekly hours limit", state.maxHours, 1)}
-        ${numberField("targetSurplus", "Target monthly surplus (HKD)", state.targetSurplus, 500)}
-        <button class="ff-chip ff-apply" type="submit">Apply criteria</button>
-      </form>
-      <div class="ff-grid">
-        ${figure({
-          id: "pay-range",
-          title: "Monthly pay range",
-          unit: `May–June ${state.payYear} · Full-time employees · HKD/month`,
-          body: intervals(rows, "pay"),
-          note: "The pale band runs from the 25th to the 75th percentile, covering the middle half. The dot is the median. Select it to use that value in the budget.",
-        })}
-        ${figure({
-          id: "hours-range",
-          title: "Weekly hours range",
-          unit: `May–June ${state.payYear} · Full-time employees · Hours/week`,
-          body: intervals(rows, "hours"),
-          note: "The dashed line marks your weekly hours limit. Read the full range to decide whether to ask about overtime, even if the median fits.",
-        })}
-      </div>
-      ${figure({
-        id: "budget",
-        title: "Monthly budget",
-        unit: "Editable scenario · HKD per month",
-        body: `<form class="ff-controls ff-budget-form" id="budget-form">
-          ${numberField("offer", "Monthly offer", state.offer, 500)}
-          ${numberField("rent", "Monthly rent", state.rent, 500)}
-          ${numberField("living", "Living and transport", state.living, 500)}
-          ${numberField("deduct", "Set-aside for deductions", state.deduct, 500)}
-          <button class="ff-chip ff-apply" type="submit">Apply budget</button>
-        </form><div id="budget-viz"></div>`,
-        note: "The budget subtracts three expenses from the assumed offer. Enter your own allowance for items such as tax and MPF. Actual deductions depend on the applicable rules and contract.",
-        full: true,
-      })}
-    </section>
-    <section class="ff-section" aria-labelledby="shortlist-heading">
-      <header class="ff-subhead"><h2 id="shortlist-heading">Which options should I investigate first?</h2></header>
-      ${figure({
-        id: "history",
-        title: "Employment trends by industry",
-        unit: `Quarterly index · ${state.startYear} to ${Math.floor(end)}`,
-        control: selectControl("startYear", "History start year", Array.from({ length: 10 }, (_, index) => 2016 + index)),
-        body: `<div id="history-viz"></div>`,
-        note: "The index divides employment in each quarter by that industry's 2016 Q1 count and multiplies by 100. Changing the start year changes only the viewing window. The lines describe industry employment levels.",
-        key: legend(sets.map(set => [set.name, set.color])),
-        full: true,
-      })}
-      ${figure({
-        id: "candidates",
-        title: "Shortlist comparison",
-        unit: "Options that meet all three criteria appear first",
-        body: shortlist(ranked),
-        note: "Verify actual pay, hours, work eligibility and terms. Vacancy rate is vacancies ÷ (employment + vacancies). Employment YoY is employment this quarter ÷ employment in the same quarter last year − 1. Both are shown as percentages.",
-        full: true,
-      })}
-    </section>`;
-
-    drawMap();
-    drawBudget();
-    drawHistory(chosen, end, histMin, histMax, histYears);
+    `;
+    updateDashboard();
   }
 
-  function drawMap() {
+  function updateDashboard() {
+    const ctx = fitContext();
+    const { matched, featured, chosen } = ctx;
+    if (!matched.length) { reconcileConstraints(); return updateDashboard(); }
+    updateSliderLimits();
+    $("#match-total").textContent = String(matched.length);
+    $("#ff-adjustment").textContent = state.adjustment;
+    $("#pay-range-viz").innerHTML = intervals(matched, "pay");
+    $("#hours-range-viz").innerHTML = intervals(matched, "hours");
+    document.querySelectorAll("[data-year-label]").forEach(element => element.textContent = state.payYear);
+    $("#budget-industry").textContent = featured?.name || "";
+    $("#budget-surplus").textContent = money(featured?.surplus ?? 0) + " surplus";
+    drawMap(chosen);
+    drawOccupation(chosen);
+    drawBudget(featured);
+  }
+
+  function drawMap(chosen) {
     const container = $("#map-viz");
     if (!container) return;
-    container.innerHTML = bubbles(container.clientWidth || 700, fitData.demand);
+    container.innerHTML = bubbles(container.clientWidth || 550, chosen);
   }
 
-  function drawBudget() {
-    const container = $("#budget-viz");
+  function drawOccupation(chosen) {
+    const container = $("#occupation-viz");
     if (!container) return;
-    container.innerHTML = waterfall(container.clientWidth || 700, state);
+    const current = fitContext();
+    const broad = new Set(state.focus && current.featured
+      ? [current.featured.id] : chosen.map(row => row.id));
+    const totals = new Map();
+    fitData.occupations.filter(row => broad.has(row.id)).forEach(row =>
+      totals.set(row.name, (totals.get(row.name) || 0) + (row.count || 0)));
+    const ordered = [...totals.entries()].sort((a, b) => b[1] - a[1]);
+    const max = Math.max(1, ...ordered.map(row => row[1]));
+    container.innerHTML = ordered.map(([name, count]) => `
+      <div class="ff-occupation-row" data-tip="${esc(name + " · " + number(count) + " vacancies")}">
+        <span class="ff-occupation-label">${esc(name)}</span>
+        <div class="ff-occupation-track"><span style="width:${count / max * 100}%"></span></div>
+        <strong>${number(count)}</strong>
+      </div>`).join("");
+  }
+
+  function drawBudget(featured) {
+    const container = $("#budget-viz");
+    if (!container || !featured) return;
+    const values = { offer: featured.pay50, rent: state.rent, living: state.living, deduct: state.deduct };
+    container.innerHTML = waterfall(container.clientWidth || 450, values);
   }
 
   function drawHistory(chosen, end, histMin, histMax, histYears) {
@@ -512,81 +570,56 @@
     });
   }
 
-  function choose(id, multiple) {
-    state.selected = multiple
-      ? state.selected.includes(id) ? state.selected.filter(value => value !== id) : [...state.selected, id]
-      : state.selected.length === 1 && state.selected[0] === id ? [] : [id];
-  }
-
-  function loadExample() {
-    Object.assign(state, {
-      selected: ["Finance & insurance", "Business services", "Food & lodging", "Real estate"],
-      payYear: 2025,
-      startYear: 2016,
-      vacancyMode: "count",
-      targetPay: 25000,
-      maxHours: 42,
-      targetSurplus: 6000,
-      offer: 25000,
-      rent: 10000,
-      living: 6500,
-      deduct: 2000,
-    });
-  }
 
   function showTip(element, event) {
-    if (!element) return;
-    const tip = element.dataset.tip;
-    if (!tip) return;
-    tooltip.textContent = tip;
+    if (!element?.dataset.tip) return;
+    tooltip.textContent = element.dataset.tip;
     tooltip.classList.add("visible");
-    tooltip.style.left = `${Math.max(8, Math.min((event?.clientX ?? 0) + 12, innerWidth - tooltip.offsetWidth - 8))}px`;
-    tooltip.style.top = `${Math.max(8, Math.min((event?.clientY ?? 0) + 12, innerHeight - tooltip.offsetHeight - 8))}px`;
+    tooltip.style.left = Math.max(8, Math.min((event?.clientX ?? 0) + 12, innerWidth - tooltip.offsetWidth - 8)) + "px";
+    tooltip.style.top = Math.max(8, Math.min((event?.clientY ?? 0) + 12, innerHeight - tooltip.offsetHeight - 8)) + "px";
   }
-
-  function hideTip() {
-    tooltip.classList.remove("visible");
-  }
-
+  function hideTip() { tooltip.classList.remove("visible"); }
   function bindEvents() {
     const app = $("#fit-app");
     app.addEventListener("click", event => {
       const target = event.target.closest("[data-action]");
       if (!target) return;
       const action = target.dataset.action;
-      if (action === "bubble" || action === "selectIndustry") choose(target.dataset.value, event.ctrlKey || event.metaKey);
-      if (action === "toggleIndustry") choose(target.dataset.value, true);
-      if (action === "offerMedian") state.offer = Number(target.dataset.value);
-      if (action === "resetIndustries") state.selected = [];
-      if (action === "case") loadExample();
-      render();
-    });
-    app.addEventListener("change", event => {
-      const key = event.target.dataset.control;
-      if (!key || event.target.tagName !== "SELECT") return;
-      if (key === "industry") state.selected = event.target.value === "all" ? [] : [event.target.value];
-      else state[key] = Number.isNaN(Number(event.target.value)) ? event.target.value : Number(event.target.value);
-      render();
-    });
-    app.addEventListener("submit", event => {
-      event.preventDefault();
-      if (event.target.id === "targets-form") {
-        state.targetPay = Number($("#targetPay").value);
-        state.maxHours = Number($("#maxHours").value);
-        state.targetSurplus = Number($("#targetSurplus").value);
+      if (action === "reset") {
+        Object.assign(state, { targetPay: 25000, maxHours: 42, targetSurplus: 6000, payYear: 2025,
+          focus: null, rent: 10000, living: 6500, deduct: 2000, adjustment: "" });
+        render(); return;
       }
-      if (event.target.id === "budget-form") {
-        state.offer = Number($("#offer").value);
-        state.rent = Number($("#rent").value);
-        state.living = Number($("#living").value);
-        state.deduct = Number($("#deduct").value);
+      if (action === "focusIndustry") {
+        state.focus = state.focus === target.dataset.value ? null : target.dataset.value;
+        updateDashboard(); return;
       }
-      render();
+      if (action === "bubble") {
+        const ctx = fitContext();
+        const match = ctx.matched.find(row => row.id === target.dataset.value);
+        if (match) state.focus = state.focus === match.name ? null : match.name;
+        updateDashboard(); return;
+      }
+      if (action === "expenses") {
+        const panel = $("#budget-settings");
+        panel.hidden = !panel.hidden;
+        target.setAttribute("aria-expanded", String(!panel.hidden));
+      }
+    });
+    app.addEventListener("input", event => {
+      const input = event.target.closest('input[type="range"][data-control]');
+      if (!input) return;
+      const key = input.dataset.control;
+      state[key] = Number(input.value);
+      state.adjustment = "";
+      if (key === "payYear" || ["rent", "living", "deduct"].includes(key)) {
+        reconcileConstraints();
+      }
+      updateDashboard();
     });
     app.addEventListener("pointermove", event => {
       const target = event.target.closest("[data-tip]");
-      if (target) showTip(target, event);
-      else hideTip();
+      if (target) showTip(target, event); else hideTip();
     });
     app.addEventListener("pointerleave", hideTip);
     app.addEventListener("focusin", event => {
@@ -597,18 +630,7 @@
     let timer;
     window.addEventListener("resize", () => {
       clearTimeout(timer);
-      timer = setTimeout(() => {
-        drawMap();
-        drawBudget();
-        const context = fitContext();
-        const { end, sets } = historySets(context.chosen);
-        const values = sets.flatMap(set => set.points.map(point => point[1])).filter(Number.isFinite);
-        const histMin = Math.floor(Math.min(100, ...values) / 10) * 10;
-        const histMax = Math.ceil(Math.max(110, ...values) / 10) * 10;
-        const histYears = Array.from({ length: Math.floor(end) - state.startYear + 1 }, (_, index) => state.startYear + index)
-          .filter((year, index, all) => all.length <= 6 || index % 2 === 0 || index === all.length - 1);
-        drawHistory(context.chosen, end, histMin, histMax, histYears);
-      }, 160);
+      timer = setTimeout(() => updateDashboard(), 160);
     });
   }
 
