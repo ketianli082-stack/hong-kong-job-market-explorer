@@ -964,3 +964,42 @@ input[type="range"]:focus-visible { outline:2px solid #8074A8; outline-offset:5p
   .ff-dashboard-charts .ff-chart-budget .ff-budget-viz { min-height:180px; }
   .ff-dashboard-charts .ff-chart-budget { min-height:355px!important; }
 }
+
+/* 2026-11 — Risk page: one full-width timeline and two aligned lower charts. */
+.explore-page #chapter-risk .risk-grid {
+  display:grid; grid-template-columns:repeat(2,minmax(0,1fr));
+  grid-template-rows:minmax(0,1.03fr) minmax(0,1fr);
+  gap:9px; min-height:0;
+}
+.explore-page #chapter-risk .risk-grid > .annual-unemployment-card {
+  grid-column:1/-1; min-height:0;
+}
+.explore-page #chapter-risk .risk-grid > figure:nth-of-type(2),
+.explore-page #chapter-risk .risk-grid > figure:nth-of-type(3) {
+  grid-column:auto; min-width:0; min-height:0;
+}
+.explore-page #chapter-risk .annual-unemployment-card .chart {
+  flex:1 1 0; min-height:0; height:0;
+}
+/* Keep the chart title and controls; remove only secondary title captions. */
+.explore-page .viz-heading p, .explore-page .subsection-heading p,
+.fit-page .ff-card-head p { display:none!important; }
+/* Match the vacancy chart SVG typography to the adjacent range-chart axis ticks. */
+.fit-page .ff-chart-hiring .ff-map-holder svg text {
+  font-family:Inter,system-ui,sans-serif;
+  font-size:10px;
+  fill:#667085;
+  font-weight:500;
+}
+.fit-page .ff-slider-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+@media(max-width:899px) {
+  .explore-page #chapter-risk .risk-grid { grid-template-columns:1fr; grid-template-rows:auto; }
+  .explore-page #chapter-risk .risk-grid > .annual-unemployment-card { grid-column:1/-1; }
+  .explore-page #chapter-risk .annual-unemployment-card .chart { height:250px; min-height:250px; flex:none; }
+}
+@media(min-width:700px) and (max-width:1199px) {
+  .fit-page .ff-slider-grid { grid-template-columns:repeat(3,minmax(0,1fr)); }
+}
+@media(max-width:699px) {
+  .fit-page .ff-slider-grid { grid-template-columns:1fr; }
+}
