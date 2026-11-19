@@ -149,6 +149,7 @@
     "No data": "暂无数据",
     "Data could not be loaded.": "数据加载失败。",
     "Loading job options…": "正在加载职业选择…",
+    "Interactive exploration of Hong Kong employment, pay and labour-market risk.": "交互式探索香港就业、薪酬与劳动力市场风险。",
     "Occupation": "职业",
     "P25–P75": "第25–75百分位",
     "P50": "中位数",
@@ -246,7 +247,7 @@
     "Female": "女性",
     "Men’s monthly pay": "男性月薪",
     "Women’s monthly pay": "女性月薪",
-    "Monthly pay gap in": "月薪差距（",
+    "Monthly pay gap in": "月薪差距",
     "Women earned": "女性薪酬低",
     "less": "",
     "Labour-force": "劳动人口",
@@ -269,6 +270,12 @@
     "Show all industries": "显示全部行业",
     "Investigate first:": "建议优先了解：",
     "Showing:": "当前显示：",
+    "Shortlist estimates use each industry's median pay. The budget chart uses the offer you enter.": "候选清单按各行业月薪中位数估算；预算图则使用你自行输入的薪酬报价。",
+    "HKD": "港元",
+    "Q1": "第一季度",
+    "Q2": "第二季度",
+    "Q3": "第三季度",
+    "Q4": "第四季度",
     "All": "全部",
     "broad industries": "个行业大类",
     "Pay below target": "薪酬低于目标",
@@ -324,7 +331,10 @@
     const source = match[2];
     let result = full[source];
     if (result === undefined) {
-      result = source;
+      result = source
+        .replace(/Monthly pay gap in (\d{4}):/g, "$1年男女月薪差距：")
+        .replace(/Women earned ([\d.,]+)% less/g, "女性月薪低 $1%")
+        .replace(/No data available for (\d{4}) \(available: (\d{4}–\d{4})\)/g, "$1年暂无数据（可用年份：$2）");
       for (const [pattern, chinese] of patterns) result = result.replace(pattern, (_, prefix) => prefix + chinese);
     }
     return match[1] + result + match[3];
