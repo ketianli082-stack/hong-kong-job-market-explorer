@@ -40,7 +40,6 @@
     startYear: 2016,
     targetPay: 25000,
     maxHours: 42,
-    targetSurplus: 6000,
     offer: 25000,
     rent: 10000,
     living: 6500,
@@ -110,7 +109,6 @@
     const issues = [
       Number.isFinite(row.pay50) && row.pay50 < state.targetPay ? "Pay below target" : null,
       Number.isFinite(row.hours50) && row.hours50 > state.maxHours ? "Hours above limit" : null,
-      Number.isFinite(surplus) && surplus < state.targetSurplus ? "Surplus below target" : null,
       missing ? "Pay or hours data missing" : null,
     ].filter(Boolean);
     return {
@@ -131,8 +129,7 @@
 
   function matches(row) {
     return row.pay50 >= state.targetPay - .001 &&
-      row.hours50 <= state.maxHours + .001 &&
-      row.pay50 - expensesTotal() >= state.targetSurplus - .001;
+      row.hours50 <= state.maxHours + .001;
   }
   function expensesTotal() { return state.rent + state.living + state.deduct; }
 
@@ -151,40 +148,38 @@
     if (validYearRows().some(matches)) return;
     const rows = validYearRows();
     if (!rows.length) return;
-    const desired = { pay: state.targetPay, hours: state.maxHours, surplus: state.targetSurplus };
-    const best = rows.slice().sort((a, b) => {
+    const desired = {pay: state.targetPay, hours: state.maxHours};
+    const nearest = rows.slice().sort((a,b) => {
       const penalty = row =>
         Math.max(0, desired.pay - row.pay50) / 10000 +
-        Math.max(0, row.hours50 - desired.hours) / 10 +
-        Math.max(0, desired.surplus - (row.pay50 - expensesTotal())) / 10000;
+        Math.max(0, row.hours50 - desired.hours) / 10;
       return penalty(a) - penalty(b);
     })[0];
-    state.targetPay = Math.min(state.targetPay, Math.floor(best.pay50 / 100) * 100);
-    state.maxHours = Math.max(state.maxHours, Math.ceil(best.hours50 * 10) / 10);
-    state.targetSurplus = Math.min(state.targetSurplus, Math.floor((best.pay50 - expensesTotal()) / 100) * 100);
+    state.targetPay = Math.min(state.targetPay, Math.floor(nearest.pay50 / 100) * 100);
+    state.maxHours = Math.max(state.maxHours, Math.ceil(nearest.hours50 * 10) / 10);
     state.adjustment = "Criteria adjusted to keep at least one matching industry.";
   }
 
   function sliderLimits(key) {
     const rows = validYearRows();
-    const cost = expensesTotal();
     if (key === "targetPay") {
-      const eligible = rows.filter(row => row.hours50 <= state.maxHours + .001 && row.pay50 - cost >= state.targetSurplus - .001);
-      return { min: Math.floor(Math.min(...rows.map(r => r.pay50)) / 100) * 100,
-        max: Math.floor(Math.max(...eligible.map(r => r.pay50)) / 100) * 100, step: 100 };
+      const eligible = rows.filter(row => row.hours50 <= state.maxHours + .001);
+      return {
+        min: Math.floor(Math.min(...rows.map(row => row.pay50)) / 100) * 100,
+        max: Math.floor(Math.max(...eligible.map(row => row.pay50)) / 100) * 100,
+        step: 100
+      };
     }
     if (key === "maxHours") {
-      const eligible = rows.filter(row => row.pay50 >= state.targetPay - .001 && row.pay50 - cost >= state.targetSurplus - .001);
-      return { min: Math.ceil(Math.min(...eligible.map(r => r.hours50)) * 10) / 10,
-        max: Math.ceil(Math.max(...rows.map(r => r.hours50)) * 10) / 10, step: .1 };
+      const eligible = rows.filter(row => row.pay50 >= state.targetPay - .001);
+      return {
+        min: Math.ceil(Math.min(...eligible.map(row => row.hours50)) * 10) / 10,
+        max: Math.ceil(Math.max(...rows.map(row => row.hours50)) * 10) / 10,
+        step: .1
+      };
     }
-    if (key === "targetSurplus") {
-      const eligible = rows.filter(row => row.pay50 >= state.targetPay - .001 && row.hours50 <= state.maxHours + .001);
-      const max = Math.floor(Math.max(...eligible.map(r => r.pay50 - cost)) / 100) * 100;
-      return { min: Math.min(0, max), max, step: 100 };
-    }
-    const years = [...new Set(fitData.pay.map(row => row.year))].sort((a, b) => a - b);
-    return { min: years[0], max: years.at(-1), step: 1 };
+    const years = [...new Set(fitData.pay.map(row=>row.year))].sort((a,b)=>a-b);
+    return {min:years[0],max:years.at(-1),step:1};
   }
 
   function formatValue(key, value) {
@@ -224,7 +219,7 @@
     $("#quarter-end").textContent = quarterLabel(fitData.quarters.at(-1));
   }
   function updateSliderLimits() {
-    ["targetPay", "maxHours", "targetSurplus", "payYear"].forEach(key => {
+    ["targetPay", "maxHours", "payYear"].forEach(key => {
       const lim = sliderLimits(key);
       const slider = document.getElementById("filter-" + key);
       if (!slider) return;
@@ -301,7 +296,10 @@
     return `<div class="ff-legend"><span><i style="background:#CDB5DE"></i>P25–P75</span><span><i style="background:#D7647D"></i>P50</span><span>Dashed line · ${targetName} ${targetText}</span></div>
       ${ordered.map(row => {
         const a = row[`${type}25`], m = row[median], b = row[`${type}75`];
-        const tip = `${row.name} · ${[a, m, b].map(number).join(" / ")} · ${isPay ? "HKD/month" : "hours/week"}`;
+        const unit = isPay ? "HKD/month" : "hours/week";
+        const tip = [row.name, "25th percentile: " + number(a) + " " + unit,
+          "Median: " + number(m) + " " + unit,
+          "75th percentile: " + number(b) + " " + unit].join("\n");
         return `<div class="ff-range-lane"><button type="button" class="ff-range-name" data-action="focusIndustry" data-value="${esc(row.name)}" aria-pressed="${state.focus === row.name}">${esc(row.name)}</button><div class="ff-range-track">
           <span class="ff-range-ref" style="left:${position(target)}%"></span>
           ${[a, b].every(Number.isFinite) ? `<span class="ff-range-band" style="left:${position(a)}%;width:${position(b) - position(a)}%" data-tip="${esc(tip)}"></span>` : ""}
@@ -375,9 +373,10 @@
     values.slice().sort((a,b) => b.openings - a.openings).forEach(row => {
       const current = fitContext();
       const selected = !state.focus || current.featured?.id === row.id;
-      const tip = row.name + " · " + quarterLabel(row.period)
-        + "\nVacancy rate " + percent(row.rate * 100) + " · " + number(row.openings) + " vacancies"
-        + "\nEmployment YoY " + percent(row.yoy * 100);
+      const tip = [row.name, "Quarter: " + quarterLabel(row.period),
+        "Vacancy rate: " + percent(row.rate * 100),
+        "Vacancies: " + number(row.openings),
+        "Employment YoY: " + percent(row.yoy * 100)].join("\n");
       const radius = Math.max(4, Math.sqrt(Math.max(0,row.openings) / max) * 19);
       content += `<circle cx="${axis.x(row.rate*100)}" cy="${axis.y(row.yoy*100)}" r="${radius}" fill="${row.yoy >= 0 ? "#62568C" : "#D7647D"}"
         opacity="${selected ? .86 : .22}" class="ff-bubble" data-tip="${esc(tip)}" data-action="bubble"
@@ -423,7 +422,7 @@
       const bottomY=Math.max(y(step.from),y(step.to));
       const bh=Math.max(2,bottomY-topY);
       const fill=index===0?"#685B92":index===4?(running>=0?"#8074A8":"#B95C73"):"#D2ACCA";
-      const desc=step.label+" · "+money(step.value);
+      const desc=step.label+"\n"+money(step.value);
       content+=`<rect x="${cx-bw/2}" y="${topY}" width="${bw}" height="${bh}" rx="4" fill="${fill}" data-tip="${esc(desc)}" aria-label="${esc(desc)}"/>`;
       if(index<3)content+=`<line x1="${cx+bw/2}" y1="${y(step.to)}" x2="${x(index+1)-bw/2}" y2="${y(step.to)}" stroke="#B7ADC2" stroke-width="1.2" stroke-dasharray="4 4"/>`;
       const numberY=Math.max(14,topY-6);
@@ -526,25 +525,23 @@
         <div class="ff-slider-grid">
           ${filterSlider("targetPay", "Minimum monthly pay")}
           ${filterSlider("maxHours", "Maximum weekly hours")}
-          ${filterSlider("targetSurplus", "Target monthly surplus")}
           ${filterSlider("payYear", "Pay reference year")}
         </div>
         <span class="ff-sr-only" id="ff-adjustment" role="status" aria-live="polite"></span>
       </section>
       <div class="ff-dashboard-charts">
         <figure class="ff-card ff-chart-pay">
-          <div class="ff-card-head"><div><h3>Monthly Pay Range</h3><p>P25–P75 · Median · HKD/month</p></div>
+          <div class="ff-card-head"><div><h3>Monthly Pay Range</h3></div>
             <span class="ff-data-year" data-year-label>${state.payYear}</span></div>
           <div class="ff-interval-container" id="pay-range-viz"></div>
         </figure>
         <figure class="ff-card ff-chart-hours">
-          <div class="ff-card-head"><div><h3>Weekly Hours Range</h3><p>P25–P75 · Median · hours/week</p></div>
+          <div class="ff-card-head"><div><h3>Weekly Hours Range</h3></div>
             <span class="ff-data-year" data-year-label>${state.payYear}</span></div>
           <div class="ff-interval-container" id="hours-range-viz"></div>
         </figure>
         <figure class="ff-card ff-chart-hiring">
-          <div class="ff-card-head"><div><h3>Hiring Opportunities</h3>
-            <p>Vacancy rate (x) · Employment growth (y)</p></div><span class="ff-quarter-value" id="quarter-value"></span></div>
+          <div class="ff-card-head"><div><h3>Hiring Opportunities</h3></div><span class="ff-quarter-value" id="quarter-value"></span></div>
           <div class="ff-quarter-controls">
             <input type="range" id="quarter-slider" data-control="quarterIndex" min="0" max="41" step="1" value="${state.quarterIndex}" aria-label="Recruitment reference quarter">
             <div class="ff-quarter-meta">
@@ -636,7 +633,7 @@
 
   function showTip(element, event) {
     if (!element?.dataset.tip) return;
-    tooltip.textContent = element.dataset.tip;
+    tooltip.textContent = element.dataset.tip.replace(/\s*·\s*/g, "\n");
     tooltip.classList.add("visible");
     tooltip.style.left = Math.max(8, Math.min((event?.clientX ?? 0) + 12, innerWidth - tooltip.offsetWidth - 8)) + "px";
     tooltip.style.top = Math.max(8, Math.min((event?.clientY ?? 0) + 12, innerHeight - tooltip.offsetHeight - 8)) + "px";
@@ -649,7 +646,7 @@
       if (!target) return;
       const action = target.dataset.action;
       if (action === "reset") {
-        Object.assign(state, { targetPay: 25000, maxHours: 42, targetSurplus: 6000, payYear: 2025,
+        Object.assign(state, { targetPay: 25000, maxHours: 42, payYear: 2025,
           focus: null, rent: 10000, living: 6500, deduct: 2000, adjustment: "", quarterIndex: fitData.quarters.length - 1 });
         render(); return;
       }
