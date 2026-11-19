@@ -35,6 +35,7 @@
     focus: null,
     adjustment: "",
     vacancyMode: "count",
+    quarterIndex: 41,
     payYear: 2025,
     startYear: 2016,
     targetPay: 25000,
@@ -47,6 +48,7 @@
   };
 
   let fitData = null;
+  let quarterTimer = null;
 
   function prepare(json) {
     const demand = json.demand2026Q2.map(row => ({
@@ -85,7 +87,14 @@
         history.push({ id: industry.id, period: row.period, value: row.employment / base * 100 });
       });
     });
-    return { demand, occupations, pay, history };
+
+    const vacancyHistory = json.demandTrend.map(row => ({
+      id: row.industry, name: row.industry, period: row.period,
+      rate: row.vacancyRate, yoy: row.employmentYoY,
+      openings: row.vacancies, employment: row.employment
+    }));
+    const quarters = [...new Set(vacancyHistory.map(row => row.period))].sort();
+    return { demand, occupations, pay, history, vacancyHistory, quarters };
   }
 
   function list(names) {
@@ -195,6 +204,45 @@
     </label>`;
   }
 
+
+  function paintRange(input) {
+    if (!input || input.type !== "range") return;
+    const a = Number(input.min), b = Number(input.max), v = Number(input.value);
+    const percent = b > a ? Math.max(0, Math.min(100, (v - a) / (b - a) * 100)) : 100;
+    input.style.setProperty("--range-progress", percent + "%");
+  }
+  function quarterLabel(period) {
+    return period ? period.replace(/^(\\d{4})Q([1-4])$/, "$1 Q$2") : "—";
+  }
+  function updateQuarterUI() {
+    const slider = $("#quarter-slider");
+    if (!slider) return;
+    slider.min = 0; slider.max = fitData.quarters.length - 1;
+    slider.value = state.quarterIndex;
+    paintRange(slider);
+    $("#quarter-value").textContent = quarterLabel(fitData.quarters[state.quarterIndex]);
+    $("#quarter-start").textContent = quarterLabel(fitData.quarters[0]);
+    $("#quarter-end").textContent = quarterLabel(fitData.quarters.at(-1));
+  }
+  function stopQuarterPlayback() {
+    if (quarterTimer !== null) clearInterval(quarterTimer);
+    quarterTimer = null;
+    const button = $('[data-action="quarterPlay"]');
+    if (button) { button.textContent = "Play"; button.setAttribute("aria-pressed", "false"); }
+  }
+  function toggleQuarterPlayback() {
+    if (quarterTimer !== null) { stopQuarterPlayback(); return; }
+    if (state.quarterIndex >= fitData.quarters.length - 1) state.quarterIndex = 0;
+    const button = $('[data-action="quarterPlay"]');
+    if (button) { button.textContent = "Pause"; button.setAttribute("aria-pressed", "true"); }
+    updateDashboard();
+    quarterTimer = setInterval(() => {
+      if (state.quarterIndex >= fitData.quarters.length - 1) { stopQuarterPlayback(); return; }
+      state.quarterIndex += 1;
+      updateDashboard();
+    }, 850);
+  }
+
   function updateSliderLimits() {
     ["targetPay", "maxHours", "targetSurplus", "payYear"].forEach(key => {
       const lim = sliderLimits(key);
@@ -202,6 +250,7 @@
       if (!slider) return;
       slider.min = lim.min; slider.max = lim.max; slider.step = lim.step;
       slider.value = state[key];
+      paintRange(slider);
       const out = document.querySelector('[data-output="' + key + '"]');
       const min = document.querySelector('[data-min="' + key + '"]');
       const max = document.querySelector('[data-max="' + key + '"]');
@@ -209,9 +258,10 @@
       if (min) min.textContent = formatValue(key, lim.min);
       if (max) max.textContent = formatValue(key, lim.max);
     });
+    updateQuarterUI();
     ["rent", "living", "deduct"].forEach(key => {
       const inp = document.querySelector('[data-control="' + key + '"]');
-      if (inp) inp.value = state[key];
+      if (inp) { inp.value = state[key]; paintRange(inp); }
       const out = document.querySelector('[data-output="' + key + '"]');
       if (out) out.textContent = money(state[key]);
     });
@@ -314,31 +364,44 @@
     return `<svg viewBox="0 0 ${w} ${h}" aria-label="${esc(label)}">${content}</svg>`;
   }
 
+
   function bubbles(w, values) {
-    const height = 254;
+    if (!values.length) return '<p class="ff-empty">No vacancy data for this period.</p>';
+    const height = 258;
+    const rateValues = values.map(row => row.rate * 100).filter(Number.isFinite);
+    const growthValues = values.map(row => row.yoy * 100).filter(Number.isFinite);
+    const allQuarterRows = fitData.vacancyHistory.filter(row => row.period === fitData.quarters[state.quarterIndex]);
+    const totalEmployment = allQuarterRows.reduce((sum, row) => sum + row.employment, 0);
+    const totalVacancies = allQuarterRows.reduce((sum, row) => sum + row.openings, 0);
+    const benchmark = totalEmployment + totalVacancies ? totalVacancies / (totalEmployment + totalVacancies) * 100 : 0;
+    const rateMin = Math.max(0, Math.floor((Math.min(0, benchmark, ...rateValues) - .3) * 2) / 2);
+    const rateMax = Math.max(rateMin + 1, Math.ceil((Math.max(benchmark, ...rateValues) + .45) * 2) / 2);
+    const yoyMin = Math.min(-1, Math.floor(Math.min(0,...growthValues) - 1));
+    const yoyMax = Math.max(1, Math.ceil(Math.max(0,...growthValues) + 1));
     const axis = axes(w, height, {
-      x: [.5, 2.8],
-      y: [-3, 4],
-      xTicks: [.5, 1, 1.5, 2, 2.5],
-      yTicks: [-2, 0, 2, 4],
-      xFormat: percent,
-      yFormat: percent,
-      right: 21,
-      bottom: 44,
+      x: [rateMin, rateMax], y: [yoyMin, yoyMax],
+      xTicks: ticks(rateMin, rateMax, 4), yTicks: ticks(yoyMin, yoyMax, 4),
+      xFormat: v => Number(v).toFixed(1) + "%",
+      yFormat: v => Number(v).toFixed(1) + "%",
+      left: 47, right: 18, bottom: 40, top: 24
     });
     let content = axis.grid
       + line(axis.left, axis.y(0), axis.right, axis.y(0), "ff-refline")
-      + line(axis.x(1.7), axis.top, axis.x(1.7), axis.bottom, "ff-refline")
-      + text(axis.right, 250, "Vacancy rate", "end")
-      + text(axis.x(1.7) + 5, axis.top + 7, "Overall 1.7%", "start");
-    const max = Math.max(...values.map(row => row.openings));
-    values.slice().sort((a, b) => b.openings - a.openings).forEach(row => {
+      + line(axis.x(benchmark), axis.top, axis.x(benchmark), axis.bottom, "ff-refline")
+      + text(axis.right, 251, "Vacancy rate", "end");
+    const max = Math.max(1, ...values.map(row => row.openings));
+    values.slice().sort((a,b) => b.openings - a.openings).forEach(row => {
       const current = fitContext();
       const selected = !state.focus || current.featured?.id === row.id;
-      const tip = `${row.name}\nVacancy rate ${percent(row.rate * 100)} · ${number(row.openings)} vacancies\nEmployment YoY ${percent(row.yoy * 100)}`;
-      content += `<circle cx="${axis.x(row.rate * 100)}" cy="${axis.y(row.yoy * 100)}" r="${Math.sqrt(row.openings / max) * 22}" fill="${row.yoy >= 0 ? "#62568C" : "#D7647D"}" opacity="${selected ? .86 : .22}" class="ff-bubble" data-tip="${esc(tip)}" data-action="bubble" data-value="${esc(row.id)}" aria-label="${esc(tip)}" aria-pressed="${Boolean(state.focus && selected)}"/>`;
+      const tip = row.name + " · " + quarterLabel(row.period)
+        + "\\nVacancy rate " + percent(row.rate * 100) + " · " + number(row.openings) + " vacancies"
+        + "\\nEmployment YoY " + percent(row.yoy * 100);
+      const radius = Math.max(4, Math.sqrt(Math.max(0,row.openings) / max) * 19);
+      content += `<circle cx="${axis.x(row.rate*100)}" cy="${axis.y(row.yoy*100)}" r="${radius}" fill="${row.yoy >= 0 ? "#62568C" : "#D7647D"}"
+        opacity="${selected ? .86 : .22}" class="ff-bubble" data-tip="${esc(tip)}" data-action="bubble"
+        data-value="${esc(row.id)}" role="button" tabindex="0" aria-label="${esc(tip)}" aria-pressed="${Boolean(state.focus && selected)}"/>`;
     });
-    return svg(w, height, "Hiring opportunities. X: vacancy rate. Y: year-on-year employment change.", content);
+    return svg(w, height, "Vacancy rate and employment year-on-year growth, " + quarterLabel(fitData.quarters[state.quarterIndex]), content);
   }
 
   function waterfall(w, amounts) {
@@ -456,48 +519,58 @@
     </div>`;
   }
 
+
   function render() {
     const context = fitContext();
-    const count = context.matched.length;
     $("#fit-app").innerHTML = `
       <div class="ff-topline">
         <div><span class="ff-eyebrow">FIND YOUR FIT · CAREER DECISION DASHBOARD</span>
           <h1>Which options fit you?</h1></div>
-        <div class="ff-match-total"><strong id="match-total">${count}</strong><span>matching industries</span></div>
+        <div class="ff-match-total"><strong id="match-total">${context.matched.length}</strong><span>matching industries</span></div>
       </div>
       <section class="ff-preferences" aria-label="Your Career Preferences">
-        <header class="ff-preferences-head"><h2>Your Career Preferences</h2><button type="button" class="ff-action" data-action="reset">Reset</button></header>
+        <header class="ff-preferences-head"><h2>Your Career Preferences</h2>
+          <button type="button" class="ff-action" data-action="reset">Reset</button></header>
         <div class="ff-slider-grid">
           ${filterSlider("targetPay", "Minimum monthly pay")}
           ${filterSlider("maxHours", "Maximum weekly hours")}
           ${filterSlider("targetSurplus", "Target monthly surplus")}
           ${filterSlider("payYear", "Pay reference year")}
         </div>
-        <div class="ff-filter-note"><span id="ff-match-explain">Only matching industries appear below.</span><span id="ff-adjustment" role="status">${esc(state.adjustment)}</span></div>
+        <span class="ff-sr-only" id="ff-adjustment" role="status" aria-live="polite"></span>
       </section>
       <div class="ff-dashboard-charts">
         <figure class="ff-card ff-chart-pay">
-          <div class="ff-card-head"><div><h3>Monthly Pay Range</h3><p>25th–75th percentile · median · HKD/month</p></div><span class="ff-data-year" data-year-label>${state.payYear}</span></div>
+          <div class="ff-card-head"><div><h3>Monthly Pay Range</h3><p>P25–P75 · Median · HKD/month</p></div>
+            <span class="ff-data-year" data-year-label>${state.payYear}</span></div>
           <div class="ff-interval-container" id="pay-range-viz"></div>
         </figure>
         <figure class="ff-card ff-chart-hours">
-          <div class="ff-card-head"><div><h3>Weekly Hours Range</h3><p>25th–75th percentile · median · hours/week</p></div><span class="ff-data-year" data-year-label>${state.payYear}</span></div>
+          <div class="ff-card-head"><div><h3>Weekly Hours Range</h3><p>P25–P75 · Median · hours/week</p></div>
+            <span class="ff-data-year" data-year-label>${state.payYear}</span></div>
           <div class="ff-interval-container" id="hours-range-viz"></div>
         </figure>
         <figure class="ff-card ff-chart-hiring">
-          <div class="ff-card-head"><div><h3>Hiring Opportunities</h3><p>2026 Q2 · vacancy rate vs. employment YoY</p></div></div>
+          <div class="ff-card-head"><div><h3>Hiring Opportunities</h3>
+            <p>Vacancy rate (x) · Employment growth (y)</p></div><span class="ff-quarter-value" id="quarter-value"></span></div>
+          <div class="ff-quarter-controls">
+            <input type="range" id="quarter-slider" data-control="quarterIndex" min="0" max="41" step="1" value="${state.quarterIndex}" aria-label="Recruitment reference quarter">
+            <div class="ff-quarter-meta">
+              <span id="quarter-start">2016 Q1</span>
+              <button type="button" class="ff-action" data-action="quarterPlay" aria-pressed="false">Play</button>
+              <span id="quarter-end">2026 Q2</span>
+            </div>
+          </div>
           <div class="ff-map-holder" id="map-viz"></div>
-          <p class="ff-footnote">Bubble size = vacancies. Select to focus an industry.</p>
-        </figure>
-        <figure class="ff-card ff-chart-occupation">
-          <div class="ff-card-head"><div><h3>Occupation Demand</h3><p>2026 Q2 · parent-industry vacancy counts</p></div></div>
-          <div class="ff-occupation-list" id="occupation-viz"></div>
+          <p class="ff-footnote">Bubble area represents job vacancies · Quarterly data</p>
         </figure>
         <figure class="ff-card ff-chart-budget">
-          <div class="ff-card-head"><div><h3>Monthly Budget Forecast</h3><p>Median pay minus estimated expenses · HKD</p></div>
+          <div class="ff-card-head"><div><h3>Monthly Budget Forecast</h3><p>Median pay minus estimated monthly expenses · HKD</p></div>
             <button type="button" class="ff-action" data-action="expenses" aria-controls="budget-settings" aria-expanded="false">Edit expenses</button></div>
-          <div class="ff-budget-summary"><span id="budget-industry"></span><strong id="budget-surplus"></strong></div>
-          <div class="ff-budget-viz" id="budget-viz"></div>
+          <div class="ff-budget-row">
+            <div class="ff-budget-summary"><span id="budget-industry"></span><strong id="budget-surplus"></strong></div>
+            <div class="ff-budget-viz" id="budget-viz"></div>
+          </div>
           ${budgetSettings()}
         </figure>
       </div>
@@ -518,33 +591,16 @@
     $("#budget-industry").textContent = featured?.name || "";
     $("#budget-surplus").innerHTML = esc(money(featured?.surplus ?? 0)) + " <span>surplus</span>";
     drawMap(chosen);
-    drawOccupation(chosen);
     drawBudget(featured);
   }
 
   function drawMap(chosen) {
     const container = $("#map-viz");
     if (!container) return;
-    container.innerHTML = bubbles(container.clientWidth || 550, chosen);
-  }
-
-  function drawOccupation(chosen) {
-    const container = $("#occupation-viz");
-    if (!container) return;
-    const current = fitContext();
-    const broad = new Set(state.focus && current.featured
-      ? [current.featured.id] : chosen.map(row => row.id));
-    const totals = new Map();
-    fitData.occupations.filter(row => broad.has(row.id)).forEach(row =>
-      totals.set(row.name, (totals.get(row.name) || 0) + (row.count || 0)));
-    const ordered = [...totals.entries()].sort((a, b) => b[1] - a[1]);
-    const max = Math.max(1, ...ordered.map(row => row[1]));
-    container.innerHTML = ordered.map(([name, count]) => `
-      <div class="ff-occupation-row" data-tip="${esc(name + " · " + number(count) + " vacancies")}">
-        <span class="ff-occupation-label">${esc(name)}</span>
-        <div class="ff-occupation-track"><span style="width:${count / max * 100}%"></span></div>
-        <strong>${number(count)}</strong>
-      </div>`).join("");
+    const period = fitData.quarters[state.quarterIndex];
+    const eligible = new Set(chosen.map(row => row.id));
+    const values = fitData.vacancyHistory.filter(row => row.period === period && eligible.has(row.id));
+    container.innerHTML = bubbles(container.clientWidth || 490, values);
   }
 
   function drawBudget(featured) {
@@ -586,8 +642,9 @@
       if (!target) return;
       const action = target.dataset.action;
       if (action === "reset") {
+        stopQuarterPlayback();
         Object.assign(state, { targetPay: 25000, maxHours: 42, targetSurplus: 6000, payYear: 2025,
-          focus: null, rent: 10000, living: 6500, deduct: 2000, adjustment: "" });
+          focus: null, rent: 10000, living: 6500, deduct: 2000, adjustment: "", quarterIndex: fitData.quarters.length - 1 });
         render(); return;
       }
       if (action === "focusIndustry") {
@@ -600,6 +657,7 @@
         if (match) state.focus = state.focus === match.name ? null : match.name;
         updateDashboard(); return;
       }
+      if (action === "quarterPlay") { toggleQuarterPlayback(); return; }
       if (action === "expenses") {
         const panel = $("#budget-settings");
         panel.hidden = !panel.hidden;
@@ -610,6 +668,12 @@
       const input = event.target.closest('input[type="range"][data-control]');
       if (!input) return;
       const key = input.dataset.control;
+      if (key === "quarterIndex") {
+        stopQuarterPlayback();
+        state.quarterIndex = Number(input.value);
+        updateDashboard();
+        return;
+      }
       state[key] = Number(input.value);
       state.adjustment = "";
       if (key === "payYear" || ["rent", "living", "deduct"].includes(key)) {
@@ -617,6 +681,13 @@
       }
       updateDashboard();
     });
+    app.addEventListener("keydown", event => {
+      const target = event.target.closest('[data-action="bubble"]');
+      if (target && (event.key === "Enter" || event.key === " ")) {
+        event.preventDefault(); target.dispatchEvent(new MouseEvent("click", { bubbles: true }));
+      }
+    });
+    document.addEventListener("visibilitychange", () => { if (document.hidden) stopQuarterPlayback(); });
     app.addEventListener("pointermove", event => {
       const target = event.target.closest("[data-tip]");
       if (target) showTip(target, event); else hideTip();
@@ -638,6 +709,7 @@
     .then(response => response.json())
     .then(json => {
       fitData = prepare(json);
+      state.quarterIndex = fitData.quarters.length - 1;
       bindEvents();
       render();
     })
