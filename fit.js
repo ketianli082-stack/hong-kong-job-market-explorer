@@ -345,9 +345,11 @@
   }
 
 
-  function bubbles(w, values) {
+  function bubbles(width, availableHeight, values) {
     if (!values.length) return '<p class="ff-empty">No vacancy data for this period.</p>';
-    const height = 258;
+    // Match the actual available chart height so the bottom axis never gets cropped.
+    const w = Math.max(310, Math.round(width || 490));
+    const height = Math.max(220, Math.round(availableHeight || 270));
     const rateValues = values.map(row => row.rate * 100).filter(Number.isFinite);
     const growthValues = values.map(row => row.yoy * 100).filter(Number.isFinite);
     const allQuarterRows = fitData.vacancyHistory.filter(row => row.period === fitData.quarters[state.quarterIndex]);
@@ -363,12 +365,12 @@
       xTicks: ticks(rateMin, rateMax, 4), yTicks: ticks(yoyMin, yoyMax, 4),
       xFormat: v => Number(v).toFixed(1) + "%",
       yFormat: v => Number(v).toFixed(1) + "%",
-      left: 47, right: 18, bottom: 40, top: 24
+      left: 47, right: 18, bottom: 48, top: 25
     });
     let content = axis.grid
       + line(axis.left, axis.y(0), axis.right, axis.y(0), "ff-refline")
       + line(axis.x(benchmark), axis.top, axis.x(benchmark), axis.bottom, "ff-refline")
-      + text(axis.right, 251, "Vacancy rate", "end");
+      + text(axis.right, height - 9, "Vacancy rate", "end");
     const max = Math.max(1, ...values.map(row => row.openings));
     values.slice().sort((a,b) => b.openings - a.openings).forEach(row => {
       const current = fitContext();
@@ -563,11 +565,15 @@
               </div>
             </div>
           </div>
-          <div class="ff-budget-result-line" aria-live="polite">
-            <div class="ff-budget-industry"><span class="ff-budget-overline">Selected industry</span><strong id="budget-industry"></strong></div>
-            <div class="ff-budget-takehome"><span>Estimated monthly surplus</span><strong id="budget-surplus"></strong></div>
+          <div class="ff-budget-row">
+            <div class="ff-budget-summary" aria-live="polite">
+              <span class="ff-budget-overline">Selected industry</span>
+              <strong id="budget-industry"></strong>
+              <span class="ff-budget-outcome-label">Estimated monthly surplus</span>
+              <strong id="budget-surplus"></strong>
+            </div>
+            <div class="ff-budget-viz" id="budget-viz"></div>
           </div>
-          <div class="ff-budget-viz" id="budget-viz"></div>
         </figure>
       </div>
     `;
@@ -599,7 +605,7 @@
     const period = fitData.quarters[state.quarterIndex];
     const eligible = new Set(chosen.map(row => row.id));
     const values = fitData.vacancyHistory.filter(row => row.period === period && eligible.has(row.id));
-    container.innerHTML = bubbles(container.clientWidth || 490, values);
+    container.innerHTML = bubbles(container.clientWidth || 490, container.clientHeight || 270, values);
   }
 
   function drawBudget(featured) {
