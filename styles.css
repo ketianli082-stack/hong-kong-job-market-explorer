@@ -968,7 +968,7 @@ input[type="range"]:focus-visible { outline:2px solid #8074A8; outline-offset:5p
 /* 2026-11 — Risk page: one full-width timeline and two aligned lower charts. */
 .explore-page #chapter-risk .risk-grid {
   display:grid; grid-template-columns:repeat(2,minmax(0,1fr));
-  grid-template-rows:minmax(0,1.03fr) minmax(0,1fr);
+  grid-template-rows:minmax(0,1fr) minmax(0,2fr);
   gap:9px; min-height:0;
 }
 .explore-page #chapter-risk .risk-grid > .annual-unemployment-card {
