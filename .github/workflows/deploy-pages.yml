@@ -24,6 +24,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Build Ye branch preview
+        run: |
+          git fetch --depth=1 origin refs/heads/codex/ye-dashboard-update
+          mkdir -p preview/ye
+          git archive FETCH_HEAD | tar -x -C preview/ye
+
       - name: Configure Pages
         uses: actions/configure-pages@v5
 
