@@ -171,7 +171,7 @@ function renderUnder35() {
 }
 
 function renderTotalEmployment() {
-  const {svg,width,height}=makeSvg("#total-employment-chart"); const m={top:25,right:45,bottom:55,left:58}; const rows=data.totalEmployment;
+  const {svg,width,height}=makeSvg("#total-employment-chart"); const m={top:25,right:45,bottom:51,left:58}; const rows=data.totalEmployment;
   const x=linear([rows[0].year,rows.at(-1).year],[m.left,width-m.right]); const min=Math.floor(Math.min(...rows.map(d=>d.thousand))/100)*100; const max=Math.ceil(Math.max(...rows.map(d=>d.thousand))/100)*100; const y=linear([min,max],[height-m.bottom,m.top]);
   yGrid(svg,y,[min,(min+max)/2,max],m.left,width-m.right,v=>fmt(v,0),"Employed persons ('000)"); xAxis(svg,x,[2008,2012,2016,2020,2025],height-m.bottom,String,"Year");
   const area=areaPath(rows.map(d=>[x(d.year),y(d.thousand)]),rows.map(d=>[x(d.year),y(min)]));
@@ -203,8 +203,9 @@ function renderTotalEmployment() {
 }
 
 function drawIndustryShare() {
-  const selected=selectedIndustryShare; const {svg,width,height}=makeSvg("#industry-share-chart"); const m={top:12,right:20,bottom:54,left:58};
+  const selected=selectedIndustryShare; const {svg,width,height}=makeSvg("#industry-share-chart"); const m={top:12,right:20,bottom:50,left:58};
   const industries=[...new Set(data.industryShares.map(d=>d.industry))], years=[...new Set(data.industryShares.map(d=>d.year))].sort((a,b)=>a-b); const x=linear([years[0],years.at(-1)],[m.left,width-m.right]);
+  const plot = {svg,x,top:m.top,bottom:height-m.bottom};
   const short={"Manufacturing":"Manufacturing","Import/export trade and wholesale":"Trade & wholesale","Retail, accommodation and food services":"Retail & lodging","Transportation, storage, postal and courier services, information and communications":"Transport & ICT","Financing, insurance, real estate, professional and business services":"Finance & business","Public administration, social and personal services":"Public & social","Construction":"Construction","Other industries":"Other"};
   $("#industry-share-legend").replaceChildren(...industries.map(industry => {
     const button = document.createElement("button");
@@ -243,30 +244,37 @@ function drawIndustryShare() {
       });
       tip(dot, `<strong>${selected} · ${d.year}</strong>${fmt(d.share,1)}%<br>${available ? "Click to explore this year" : "Linked data available from 2016"}`);
       svg.appendChild(dot);
-    }); return;
+    }); return plot;
   }
   const y=linear([0,100],[height-m.bottom,m.top]); yGrid(svg,y,[0,25,50,75,100],m.left,width-m.right,v=>`${v}%`,"Employment share (%)"); xAxis(svg,x,[2008,2012,2016,2020,2025],height-m.bottom,String,"Year");
   const stacks=new Map(industries.map(i=>[i,[]])); years.forEach(year=>{let total=0;industries.forEach(industry=>{const value=data.industryShares.find(d=>d.year===year&&d.industry===industry)?.share||0;stacks.get(industry).push({year,value,y0:total,y1:total+value});total+=value;});});
   industries.forEach(industry=>{const rows=stacks.get(industry);const p=s("path",{d:areaPath(rows.map(d=>[x(d.year),y(d.y1)]),rows.map(d=>[x(d.year),y(d.y0)])),fill:industryShareColors[industry],opacity:.86,stroke:"#fff","stroke-width":.7,class:"interactive-area"});tip(p,`<strong>${industry}</strong>Click to isolate this industry.`);p.addEventListener("click",()=>{selectedIndustryShare=industry;renderIndustryShare();});svg.appendChild(p);});
+  return plot;
 }
 
 function renderIndustryShare() {
-  drawIndustryShare();
-  const svg = $("#industry-share-chart svg");
-  const width = svg.viewBox.baseVal.width, height = svg.viewBox.baseVal.height;
+  const {svg,x:yearScale,top,bottom} = drawIndustryShare();
   const year = compositionYear();
-  const x = linear([2008, 2025], [58, width - 20])(year);
-  const top = 12, bottom = height - 54;
+  const x = yearScale(year);
+  const labelY = bottom+19;
   const rows = data.industryShares.filter(row => row.year === year &&
     (!selectedIndustryShare || row.industry === selectedIndustryShare));
   svg.appendChild(s("line", { x1: x, x2: x, y1: top, y2: bottom,
     stroke: "#857C96", "stroke-width": .75, "stroke-dasharray": "3 3", "pointer-events": "none" }));
-  // Replace nearby axis ticks with the selected year to avoid overlapping labels.
-  svg.querySelectorAll(".tick-label").forEach(label => {
-    if (+label.getAttribute("y") === bottom + 19 && Math.abs(+label.getAttribute("x") - x) < 30) label.remove();
-  });
-  svg.appendChild(s("text", { x, y: bottom + 19,
-    "text-anchor": "middle", class: "direct-label" }, String(year)));
+  let yearLabel;
+  for (const label of svg.querySelectorAll(".tick-label")) {
+    if (+label.getAttribute("y") !== labelY) continue;
+    if (label.textContent === String(year)) yearLabel = label;
+    else if (Math.abs(+label.getAttribute("x") - x) < 30) label.remove();
+  }
+  if (yearLabel) {
+    yearLabel.classList.add("direct-label");
+  } else {
+    svg.append(
+      s("line",{x1:x,x2:x,y1:bottom,y2:bottom+5,class:"axis-line"}),
+      s("text",{x,y:labelY,"text-anchor":"middle",class:"direct-label"},String(year))
+    );
+  }
   const marker = s("rect", { x: x - 7, y: top, width: 14, height: bottom - top, fill: "transparent" });
   tip(marker, `<strong>${year} · Employment share</strong>` +
     rows.map(row => `${row.industry}: ${fmt(row.share, 1)}%`).join("<br>"));
@@ -285,7 +293,37 @@ function renderStatus(){
   if (!rows.length) { showCompositionUnavailable(svg, width, height); return; }
   rows.forEach((d,i)=>{const next=angle+d.employedThousand/total*Math.PI*2,color=palette[i];const arc=s("path",{d:donutArc(cx,cy,r0,r,angle,next),fill:color,stroke:"#fff","stroke-width":2});tip(arc,`<strong>${d.status}</strong>${fmt(d.employedThousand,1)} thousand<br>${fmt(d.employedThousand/total*100,1)}%`);svg.appendChild(arc);angle=next;});
   svg.append(s("text",{x:cx,y:cy-2,"text-anchor":"middle",class:"donut-value"},String(compositionYear())),s("text",{x:cx,y:cy+18,"text-anchor":"middle",class:"tick-label donut-caption"},"employment status"));
-  rows.forEach((d,i)=>{const y=26+i*Math.min(43,(height-49)/Math.max(1,rows.length-1)),x=Math.round(width*.45);svg.append(s("rect",{x,y:y-9,width:10,height:10,rx:2,fill:palette[i]}),s("text",{x:x+17,y,class:"bar-label"},d.status),s("text",{x:x+17,y:y+17,class:"tick-label"},`${fmt(d.employedThousand,1)}k · ${fmt(d.employedThousand/total*100,1)}%`));});
+  const baselineYear = Math.min(...data.employmentStatus.map(row=>row.year));
+  const baseline = data.employmentStatus.filter(row=>row.year===baselineYear);
+  const baselineTotal = baseline.reduce((sum,row)=>sum+row.employedThousand,0);
+  const baseShares = new Map(baseline.map(row=>[row.status,row.employedThousand/baselineTotal*100]));
+  const totals = new Map();
+  for(const row of data.employmentStatus) totals.set(row.year,(totals.get(row.year) ?? 0)+row.employedThousand);
+  const limit = Math.max(1,Math.ceil(Math.max(...data.employmentStatus.map(row=>
+    Math.abs(row.employedThousand/totals.get(row.year)*100-(baseShares.get(row.status) ?? 0))))));
+  const x = Math.round(width*.45), right = width-8;
+  const half = Math.max(0,(right-x-57)/2), zero = x+half;
+  const step = Math.min(55,(height-30)/rows.length);
+  const firstY = Math.max(12,(height-rows.length*step)/2);
+  const zh = window.HKJobI18n?.getLanguage()==="zh";
+  const heading = zh ? `较 ${baselineYear} 年变化（百分点）` : `Change since ${baselineYear} (pp)`;
+  rows.forEach((d,i)=>{
+    const y=firstY+i*step, share=d.employedThousand/total*100;
+    const change=share-(baseShares.get(d.status) ?? 0);
+    const rounded=Number(change.toFixed(2));
+    const signed=`${rounded>0?"+":""}${fmt(rounded,2)}`;
+    const barY=y+27, length=Math.abs(change)/limit*half;
+    svg.append(
+      s("rect",{x,y:y-9,width:9,height:9,rx:2,fill:palette[i]}),
+      s("text",{x:x+13,y,class:"bar-label"},d.status),
+      s("text",{x:x+13,y:y+13,class:"tick-label"},`${fmt(d.employedThousand,1)}k · ${fmt(share,1)}%`),
+      s("line",{x1:x,x2:x+2*half,y1:barY,y2:barY,stroke:"#E5E0EB","stroke-width":4}),
+      s("rect",{x:change<0?zero-length:zero,y:barY-3,width:length,height:6,rx:1,fill:palette[i]}),
+      s("line",{x1:zero,x2:zero,y1:barY-5,y2:barY+5,stroke:"#62568C"}),
+      s("text",{x:right,y:barY+3,"text-anchor":"end",class:"tick-label"},signed)
+    );
+  });
+  svg.append(s("text",{x:right,y:height-6,"text-anchor":"end",class:"tick-label"},heading));
 }
 function occupationTiles(rows, x, y, width, height, total) {
   if (rows.length === 1) return [{ occupation: rows[0], x, y, width, height }];
@@ -343,11 +381,26 @@ function renderOccupation() {
     tip(rect, `<strong>${row.occupation}</strong>${fmt(row.employedThousand, 1)} thousand employed<br>${fmt(row.employedThousand / total * 100, 1)}%`);
     svg.appendChild(rect);
 
-    if (tile.height < 45) continue;
-    const label = s("text", { x: tile.x + 8, y: tile.y + 18, class: "heat-label" }, short[row.occupation] ?? row.occupation);
+    if (rows.indexOf(row) >= rows.length - 2) continue;
+    const inset = Math.min(7, tile.width * 0.08, tile.height * 0.08);
+    const label = s("foreignObject", {
+      x: tile.x + inset, y: tile.y + inset,
+      width: tile.width - 2 * inset, height: tile.height - 2 * inset,
+      "pointer-events": "none"
+    });
+    const text = document.createElement("div");
+    text.className = "occupation-tile-label";
+    const name = document.createElement("strong");
+    name.textContent = short[row.occupation] ?? row.occupation;
+    const share = document.createElement("span");
+    share.textContent = `${fmt(row.employedThousand / total * 100, 1)}%`;
+    text.append(name, share);
+    label.append(text);
     svg.appendChild(label);
-    if (label.getComputedTextLength() > tile.width - 16) label.remove();
-    else svg.appendChild(s("text", { x: tile.x + 8, y: tile.y + 35, class: "heat-value" }, `${fmt(row.employedThousand, 1)}k`));
+    const maxHeight = tile.height - 2 * inset;
+    for (let size = 12; text.scrollHeight > maxHeight && size > 6; size--) {
+      text.style.fontSize = `${size - 1}px`;
+    }
   }
 }
 
@@ -622,7 +675,7 @@ function renderPayTrend() {
   popup.hidden = true;
   container.appendChild(popup);
   let pinnedIndex = null;
-  let activeIndex = years.length - 1;
+  let activeIndex = Math.max(0, years.indexOf(Number($("#gender-employment-year").value)));
 
   function showYear(index) {
     activeIndex = index;
@@ -658,9 +711,13 @@ function renderPayTrend() {
 
   container.onYearSelected = year => {
     const index = years.indexOf(year);
-    if (index >= 0) { pinnedIndex = index; showYear(index); }
+    if (index < 0) return;
+    activeIndex = index;
+    if (pinnedIndex !== index) {
+      pinnedIndex = null;
+      clearYear();
+    }
   };
-  container.onYearSelected(Number($("#gender-employment-year").value));
   target.addEventListener("pointermove", event => {
     if (pinnedIndex === null) showYear(indexAt(event));
   });
@@ -883,6 +940,7 @@ function syncYearOutput(id) {
   paintRange(input);
 }
 const renderers = {
+  markets: () => {},
   structure: () => { syncYearOutput("#composition-year"); renderTotalEmployment(); renderIndustryShare(); renderStatus(); renderOccupation(); },
   risk: () => { syncYearOutput("#risk-year"); renderEducationRisk(); renderUnemployment(); renderRiskGroup(); },
   equity: () => { syncYearOutput("#gender-employment-year"); renderParticipation(); renderGenderEmployment(); renderPayTrend(); renderPayGap(); }

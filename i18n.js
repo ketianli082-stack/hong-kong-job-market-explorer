@@ -59,7 +59,6 @@
     "Hong Kong job market story": "香港就业市场分析",
     "Expand chapter navigation": "展开章节导航",
     "Collapse chapter navigation": "收起章节导航",
-    "Two Markets": "双城市场",
     "Employment Structure": "就业结构",
     "Risk & Resilience": "风险与韧性",
     "Gender & Pay": "性别与薪酬",
