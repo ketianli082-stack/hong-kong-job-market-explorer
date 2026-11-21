@@ -893,3 +893,5 @@ circle.market-age-picked { stroke:#fff; stroke-width:1.4; r:4.8px; }
 }
 #mainland-mix .trend-legend > span { gap:3px; }
 #mainland-mix .trend-legend i { width:6px; height:6px; flex:none; }
+
+#market-compare .market-rates {font-size:12px;color:var(--muted);margin-inline-start:auto;}

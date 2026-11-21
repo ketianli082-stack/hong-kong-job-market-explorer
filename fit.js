@@ -35,6 +35,7 @@
     focus: null,
     adjustment: "",
     vacancyMode: "count",
+    hiringView: "map",
     quarterIndex: 41,
     payYear: 2025,
     startYear: 2016,
@@ -537,9 +538,9 @@
           <div id="pay-hours-viz" class="ff-scatter-viz"></div>
         </figure>
         <figure class="ff-card ff-chart-hiring">
-          <div class="ff-card-head"><div><h3>Industry × Occupation Vacancies</h3></div><span class="ff-quarter-value" >2026 Q2</span></div>
+          <div class="ff-card-head"><select id="hiring-view" aria-label="Hiring view"><option value="map">Hiring opportunities</option><option value="flow">Industry × Occupation Vacancies</option><option value="trend">Industry employment trend</option></select><span class="ff-quarter-value">2026 Q2</span></div>
           <div class="ff-map-holder" id="map-viz"></div>
-          <p class="ff-footnote">Band width represents vacancies · 2026 Q2</p>
+          <p class="ff-footnote" id="hiring-note"></p>
         </figure>
         <figure class="ff-card ff-chart-budget">
           <div class="ff-card-head ff-budget-head">
@@ -580,7 +581,7 @@
     const surplus = featured?.surplus ?? 0;
     $("#budget-surplus").textContent = money(surplus);
     $("#budget-surplus").classList.toggle("ff-budget-negative", surplus < 0);
-    drawMap(selectedTableauIndustry ? fitData.demand : state.focus && featured ? chosen.filter(row=>row.id===featured.id) : chosen);
+    drawMap(selectedTableauIndustry || selectedVacancyIndustry ? fitData.demand : state.focus && featured ? chosen.filter(row=>row.id===featured.id) : chosen);
     drawBudget(featured);
   }
 
@@ -593,6 +594,7 @@
     "Social & personal services":"Public & social services"
   };
   let selectedTableauIndustry = null;
+  let selectedVacancyIndustry = null;
   function drawPayHours() {
     const container=$("#pay-hours-viz");
     const rows=window.tableauIncomeHours.filter(row=>+row[0]===state.payYear);
@@ -656,7 +658,24 @@
   function drawMap(chosen) {
     const container = $("#map-viz");
     if (!container) return;
-    container.innerHTML = vacancyFlow(chosen);
+    $("#hiring-view").value = state.hiringView;
+    const period = fitData.quarters[state.quarterIndex];
+    const industries = chosen.filter(row=>!selectedTableauIndustry || broadGroup[row.id]===selectedTableauIndustry);
+    const ids = new Set(industries.map(row=>row.id));
+    const note = $("#hiring-note");
+    if (state.hiringView === "map") {
+      note.textContent = "Vacancy rate × employment growth (YoY) · Bubble size: vacancies";
+      container.innerHTML = bubbles(container.clientWidth,container.clientHeight,fitData.vacancyHistory.filter(row=>row.period===period && ids.has(row.id) && Number.isFinite(row.yoy)));
+    } else if (state.hiringView === "trend") {
+      note.textContent = "Employment index · 2016 Q1 = 100";
+      container.innerHTML = series(container.clientWidth,historySets(industries).sets,{
+        height:container.clientHeight, x:[2016,historyX(period)], xTicks:[2016,2020,2024],
+        refY:100, label:"Industry employment trend"
+      });
+    } else {
+      note.textContent = "Band width represents vacancies · 2026 Q2";
+      container.innerHTML = vacancyFlow(selectedVacancyIndustry ? industries.filter(row=>row.id===selectedVacancyIndustry) : industries);
+    }
   }
 
   function drawBudget(featured) {
@@ -695,14 +714,17 @@
   }
   function hideTip() { tooltip.classList.remove("visible"); }
   function bindEvents() {
+    $("#fit-app").addEventListener("change", event => {
+      if (event.target.id === "hiring-view") {selectedVacancyIndustry=null; state.hiringView=event.target.value; updateDashboard();}
+    });
     const app = $("#fit-app");
     app.addEventListener("click", event => {
       const target = event.target.closest("[data-action]");
       if (!target) return;
       const action = target.dataset.action;
-      if (action === "tableauIndustry") { selectedTableauIndustry = selectedTableauIndustry===target.dataset.value?null:target.dataset.value; updateDashboard(); return; }
+      if (action === "tableauIndustry") { selectedVacancyIndustry=null; state.hiringView="flow"; selectedTableauIndustry = selectedTableauIndustry===target.dataset.value?null:target.dataset.value; updateDashboard(); return; }
       if (action === "reset") {
-        selectedTableauIndustry=null;
+        selectedTableauIndustry=null; selectedVacancyIndustry=null; state.hiringView="map";
         Object.assign(state, { targetPay: 25000, maxHours: 42, payYear: 2025,
           focus: null, rent: 10000, living: 6500, deduct: 2000, adjustment: "", quarterIndex: fitData.quarters.length - 1 });
         render(); return;
@@ -712,9 +734,11 @@
         updateDashboard(); return;
       }
       if (action === "bubble") {
-        const ctx = fitContext();
-        const match = ctx.matched.find(row => row.id === target.dataset.value);
-        if (match) state.focus = state.focus === match.name ? null : match.name;
+        const match = fitContext().matched.find(row=>row.id===target.dataset.value);
+        if (match) state.focus=match.name;
+        selectedTableauIndustry=null;
+        state.hiringView="flow";
+        selectedVacancyIndustry=target.dataset.value;
         updateDashboard(); return;
       }
       if (action === "expenses") {
@@ -735,6 +759,7 @@
         updateDashboard();
         return;
       }
+      selectedVacancyIndustry=null;
       state[key] = Number(input.value);
       state.adjustment = "";
       if (key === "payYear" || ["rent", "living", "deduct"].includes(key)) {

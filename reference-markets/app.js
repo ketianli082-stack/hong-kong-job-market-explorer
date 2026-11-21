@@ -316,7 +316,7 @@
   }
 
   function markets() {
-    return '<header class="chapter-header" id="market-compare"><h1>Two Markets</h1></header>'
+    return `<header class="chapter-header" id="market-compare"><h1>${t("两地对照","Two Markets")}</h1><span class="market-rates">${t("总体失业率 · 内地城镇 5.1%（2025年12月） · 香港 3.6%（2025年第四季度，未经季调）","Overall unemployment · Urban Mainland 5.1% (Dec 2025) · Hong Kong 3.6% (Q4 2025, unadjusted)")}</span></header>`
       + `<div class="grid wide-pair market-ages">`
       + marketAgeChart()
       + marketIndustryAge()

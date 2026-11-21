@@ -5,6 +5,18 @@
 
   const storageKey = "hkjm-language";
   const full = {
+    "Industry × Occupation Vacancies": "行业 × 职业空缺",
+    "Review": "市场概览",
+    "Employment shares": "就业占比",
+    "Representation and pay gap": "女性就业占比与薪酬差额",
+    "Male − female pay (HKD)": "男女月薪差额（港元）",
+    "Women’s employment share": "女性就业占比",
+    "All ages": "全部年龄",
+    "Selected age trend": "所选年龄组趋势",
+    "Industry employment trend": "行业用工走势",
+    "Employment index · 2016 Q1 = 100": "用工指数 · 2016年第一季度 = 100",
+    "Vacancy rate × employment growth (YoY) · Bubble size: vacancies": "空缺率 × 就业人数同比变化 · 气泡面积表示空缺人数",
+
     "Selected industry": "当前行业",
     "Estimated monthly surplus": "预计每月结余",
 
@@ -63,9 +75,9 @@
     "Risk & Resilience": "风险与韧性",
     "Gender & Pay": "性别与薪酬",
     "00 · TWO MARKETS": "00 · 两地就业市场",
-    "01 · EMPLOYMENT STRUCTURE": "01 · 就业结构",
+    "03 · EMPLOYMENT STRUCTURE": "03 · 就业结构",
     "02 · RISK & RESILIENCE": "02 · 风险与韧性",
-    "03 · GENDER & PAY": "03 · 性别与薪酬",
+    "01 · GENDER & PAY": "01 · 性别与薪酬",
     "Different Workforce Profiles": "两地劳动力结构有何不同？",
     "A direct comparison before the analysis focuses on Hong Kong.": "先比较内地与香港，再深入分析香港就业市场。",
     "Employment by age": "就业人口年龄结构",

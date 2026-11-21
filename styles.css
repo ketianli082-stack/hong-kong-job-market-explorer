@@ -1060,3 +1060,11 @@ input[type="range"]:focus-visible { outline:2px solid #8074A8; outline-offset:5p
   overflow-wrap:anywhere;
 }
 .occupation-tile-label span { display:block; margin-top:2px; font-variant-numeric:tabular-nums; }
+
+.chapter-tabs button[hidden] { display:none!important; }
+.view-choice { align-self:flex-end; }
+@media(min-width:801px) {
+ .explore-page #chapter-risk .risk-grid { grid-template-rows:repeat(2,minmax(0,1fr)); }
+ .explore-page #chapter-risk .risk-grid > .annual-unemployment-card { grid-column:auto; }
+ .explore-page #chapter-risk .risk-grid .chart { flex:1 1 0; height:0; min-height:0; }
+}

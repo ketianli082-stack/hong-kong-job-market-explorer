@@ -7,8 +7,13 @@
 
 > 网站使用 GitHub Pages 部署。仓库已配置 `.github/workflows/deploy-pages.yml`，提交到 `main` 后自动触发部署。首次使用时需要在 [Settings → Pages](https://github.com/ketianli082-stack/hong-kong-job-market-explorer/settings/pages) 将 Build and deployment 的 Source 设置为 **GitHub Actions**；在首次部署成功前，预览地址可能显示 404。
 
-- Page 01 — Explore：香港就业市场数据故事
-- Page 02 — Find Your Fit：求职选择与行业比较工具
+## 三段式汇报版本
+
+- **Review** 从 00 两地对照进入 01 性别与薪酬。行业卡可切换到女性就业占比与月薪差额散点图。
+- **Explore** 从 02 风险与韧性进入 03 就业结构。点击年龄热力图中的单元格可查看该年龄组历年趋势。
+- **Find Your Fit** 在招聘机会、行业职业空缺和季度用工走势之间切换，再结合收入、工时和月度预算进行选择。
+
+本地运行 `python3 -m http.server 8001` 后打开 [Review](http://localhost:8001/index.html#markets)。上方 GitHub Pages 链接对应此前发布的版本。
 
 ## 分工
 
