@@ -2,7 +2,7 @@ name: Deploy site to GitHub Pages
 
 on:
   push:
-    branches: [main]
+    branches: [main, page1-ye]
   workflow_dispatch:
 
 permissions:
@@ -23,10 +23,12 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: main
 
       - name: Build Ye branch preview
         run: |
-          git fetch --depth=1 origin refs/heads/codex/ye-dashboard-update
+          git fetch --depth=1 origin refs/heads/page1-ye
           mkdir -p preview/ye
           git archive FETCH_HEAD | tar -x -C preview/ye
 
