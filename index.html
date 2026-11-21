@@ -9,6 +9,12 @@
   <link rel="stylesheet" href="styles.css?v=risk-legend">
 </head>
 <body class="explore-page is-landing">
+  <script>
+    // Apply deep links before the landing hero can paint.
+    if (["#markets", "#equity", "#risk", "#structure"].includes(location.hash)) {
+      document.body.classList.remove("is-landing");
+    }
+  </script>
   <header class="topbar">
     <a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true"></span><span>Hong Kong Job Market Explorer</span></a>
     <nav aria-label="Primary navigation"><a href="index.html#markets" data-section="review">Review</a><a href="index.html#risk" data-section="explore">Explore</a><a href="fit.html">Find Your Fit</a></nav><div class="language-toggle" role="group" aria-label="Language / 语言"><button type="button" data-lang="en" aria-pressed="true">EN</button><button type="button" data-lang="zh" aria-pressed="false">中文</button></div>
@@ -37,7 +43,7 @@
       <section class="chapter-panel" id="chapter-markets" data-panel="markets" role="tabpanel" aria-labelledby="tab-markets" hidden>
         <iframe id="markets-reference" title="Mainland China and Hong Kong employment comparison" src="reference-markets/index.html?v=market-lavender&theme=light&lang=zh-Hans#markets" loading="lazy"></iframe>
       </section>
-      <section class="chapter-panel active" id="chapter-structure" data-panel="structure" role="tabpanel" aria-labelledby="tab-structure">
+      <section class="chapter-panel" id="chapter-structure" data-panel="structure" role="tabpanel" aria-labelledby="tab-structure" hidden>
         <header class="chapter-heading"><span>03 · EMPLOYMENT STRUCTURE</span><h2>Where Hong Kong Works</h2><p>Employment scale, industry composition and the occupations behind the market.</p><label class="year-slider">Year <input id="composition-year" type="range" min="2016" max="2025" step="1" value="2025"><output for="composition-year">2025</output></label></header>
         <div class="dashboard-grid two-columns">
           <figure class="viz-card"><div class="viz-heading"><div><h3>Total employment</h3></div></div><div id="total-employment-chart" class="chart h-270"></div></figure>
