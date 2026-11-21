@@ -421,8 +421,7 @@ function renderParticipation() {
   const linked = $("#participation-mode").value === "linked";
   const selectedYear = +$("#gender-employment-year").value;
   const rows = linked ? participationHistory.filter(row => row.year === selectedYear) : data.participationByAgeSex;
-  $("#participation-selected-year").textContent = linked ? selectedYear : "";
-  $("#participation-selected-year").hidden = !linked;
+  $("#participation-selected-year").textContent = linked ? selectedYear : "1985 · 2005 · 2025";
   $("#participation-play").disabled = !linked || !participationHistory.length;
   $("#participation-chart").setAttribute("aria-label", linked ? `Participation by age and sex in ${selectedYear}` : "Participation in 1985, 2005 and 2025");
   const ages = [...new Set(rows.map(row => row.age))];
@@ -522,9 +521,11 @@ const industryEmploymentAliases = {
 
 let selectedPayIndustry = null;
 function renderGenderEmployment() {
-  if ($("#equity-view").selectedIndex === 1) return renderRepresentationGap();
+  renderRepresentationGap();
   const { svg, width, height } = makeSvg("#gender-employment-chart");
   const year = $("#gender-employment-year").value;
+  $("#gender-employment-year-label").textContent = year;
+  $("#pay-trend-year").textContent = year;
   const employment = industryEmploymentBySex[year];
   const industries = Object.entries(industryEmploymentAliases);
   const m = { top: 24, right: 19, bottom: 44, left: Math.min(126, Math.round(width * .47)) };
@@ -617,27 +618,40 @@ function renderPayGap() {
 }
 
 function renderRepresentationGap() {
-  const {svg,width,height} = makeSvg("#gender-employment-chart");
+  const {svg,width,height} = makeSvg("#representation-chart");
   const year = $("#gender-employment-year").value;
+  $("#representation-chart-label").textContent=year;
   const rows = Object.keys(industryEmploymentAliases).map(industry => {
     const [men,women] = industryEmploymentBySex[year][industry];
     const [malePay,femalePay] = industryPayBySex[year][industry];
-    return {industry, share:100*women/(women+men), gap:malePay-femalePay};
+    return {industry, employment:men+women, share:100*women/(women+men), gap:malePay-femalePay};
   });
-  const low = Math.min(0,...rows.map(r=>Math.floor(r.gap/5000)*5000));
-  const high = Math.max(5000,...rows.map(r=>Math.ceil(r.gap/5000)*5000));
-  const x = linear([0,100],[65,width-22]), y = linear([low,high],[height-45,18]);
-  const ticks = Array.from({length:1+(high-low)/5000},(_,i)=>low+i*5000);
+  const x = linear([0,100],[65,width-22]);
+  // Leave space above the highest labeled tick for observed gaps up to HK$17,000.
+  const y = linear([-5000,19000],[height-49,18]);
+  const ticks = [-5000,0,5000,10000,15000];
+  const colorStops = [[-1500,[222,145,92]],[0,[224,211,221]],[15000,[143,76,132]]];
+  function gapColor(gap) {
+    const [[min,start],[max,end]] = gap < 0 ? colorStops.slice(0,2) : colorStops.slice(1);
+    const ratio = clamp((gap-min)/(max-min),0,1);
+    return `rgb(${start.map((value,i)=>Math.round(value+(end[i]-value)*ratio)).join(",")})`;
+  }
   yGrid(svg,y,ticks,x(0),x(100),v=>v/1000+"k","Male − female pay (HKD)");
-  xAxis(svg,x,[0,25,50,75,100],height-45,v=>v+"%","Women’s employment share");
-  rows.forEach(({industry,share,gap}) => {
-    const dot=s("circle",{cx:x(share),cy:y(gap),r:7,fill:"#aa507a",stroke:"white",tabindex:0,role:"button","aria-label":industry,opacity:!selectedPayIndustry||selectedPayIndustry===industry?1:.25});
+  xAxis(svg,x,[0,25,50,75,100],height-49,v=>v+"%","Women’s employment share");
+  svg.append(s("line",{x1:x(50),x2:x(50),y1:6,y2:height-49,stroke:"#cd7596","stroke-dasharray":"3 3"}),s("line",{x1:x(0),x2:x(100),y1:y(0),y2:y(0),stroke:"#999","stroke-dasharray":"3 3"}));
+  const marks=[], max=Math.max(...rows.map(d=>d.employment));
+  rows.sort((a,b)=>b.employment-a.employment).forEach(({industry,share,gap,employment}) => {
+    const radius=Math.sqrt(employment/max)*Math.min(21,height/11);
+    const dot=s("circle",{cx:x(share),cy:y(gap),r:radius,fill:gapColor(gap),stroke:"white",tabindex:0,role:"button","aria-label":industry,opacity:!selectedPayIndustry||selectedPayIndustry===industry?1:.25});
     tip(dot,`<strong>${industryEmploymentAliases[industry]} · ${year}</strong>${fmt(share,1)}% · HK$${fmt(gap)}`);
     const choose=()=>{selectedPayIndustry=selectedPayIndustry===industry?null:industry;hideTip();renderGenderEmployment();renderPayGap();};
     dot.onclick=choose;
     dot.onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();choose();}};
-    svg.append(dot);
+    const label=s("text",{x:0,y:0,"font-size":10,"pointer-events":"none"},industryEmploymentAliases[industry]);
+    svg.append(dot,label);
+    marks.push({x:x(share),y:y(gap),r:radius,label});
   });
+  labelScatter(svg,marks,{left:x(0)+2,right:width-4,top:2,bottom:height-51});
 }
 
 function renderPayTrend() {
@@ -791,7 +805,7 @@ function setRiskYear(year) {
   $("#risk-year").value = year;
   syncYearOutput("#risk-year");
   renderUnemployment();
-  renderRiskGroup(); renderRiskAgeTrend();
+  renderRiskGroup(); renderRiskHeatmap();
   renderEducationRisk();
 }
 function riskYear() { return +$("#risk-year").value; }
@@ -889,7 +903,7 @@ function renderRiskGroup() {
   rows.forEach((d,i)=>{
     const center=m.top+(i+.5)*rowHeight;
     const bar=s("rect",{x:m.left,y:center-7,width:x(d.rate)-m.left,height:14,rx:2,fill:d.age===$("#risk-age").value?"#824A7E":"#EDB1D4",tabindex:"0",role:"button","aria-label":d.age,"data-age":d.age,style:"cursor:pointer"});
-    const choose=()=>{$("#risk-age").value=d.age;hideTip();renderRiskGroup(); renderRiskAgeTrend();};
+    const choose=()=>{$("#risk-age").value=d.age;hideTip();renderRiskGroup(); renderRiskHeatmap();};
     bar.addEventListener("click",choose);
     bar.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();choose();}});
     tip(bar,`<strong>${d.age} · ${d.year}</strong>${fmt(d.rate,1)}% unemployment`);
@@ -898,21 +912,36 @@ function renderRiskGroup() {
   });
 }
 
-function renderRiskAgeTrend() {
-  const {svg,width,height}=makeSvg("#risk-age-trend");
+function renderCrisisRecovery() {
+  const {svg,width,height}=makeSvg("#crisis-recovery");
+  const rows=data.crisisRecovery;
+  const left=47, right=width-14, bottom=height-44;
+  const x=linear([-8,16],[left,right]);
+  const y=linear([-4,5],[bottom,10]);
+  yGrid(svg,y,[-4,-2,0,2,4],left,right,v=>v>0?"+"+v:v,"Change in unemployment (pp)");
+  xAxis(svg,x,[-8,-4,0,4,8,12,16],bottom,String,"Quarters since crisis began");
+  svg.append(
+    s("line",{x1:left,x2:right,y1:y(0),y2:y(0),stroke:"#776a85","stroke-dasharray":"3 3"}),
+    s("line",{x1:x(0),x2:x(0),y1:10,y2:bottom,stroke:"#aaa","stroke-dasharray":"3 3"})
+  );
+  const colors={2003:"#b95079",2008:"#9574cc",2020:"#62558c"};
+  for(const crisis of new Set(rows.map(row=>row.crisis))){
+    const points=rows.filter(row=>row.crisis===crisis).sort((a,b)=>a.relativeQuarter-b.relativeQuarter);
+    const color=colors[crisisYear(crisis)];
+    svg.append(s("path",{d:linePath(points.map(row=>[x(row.relativeQuarter),y(row.changePp)])),fill:"none",stroke:color,"stroke-width":2}));
+    for(const row of points){
+      const dot=s("circle",{cx:x(row.relativeQuarter),cy:y(row.changePp),r:3,fill:color});
+      tip(dot,`<strong>${crisis}</strong>Q ${row.relativeQuarter} · ${fmt(row.changePp,1)} pp`);
+      svg.append(dot);
+    }
+  }
+}
+
+function renderRiskHeatmap() {
+  const {svg,width,height}=makeSvg("#risk-heatmap");
   const ages=[...new Set(riskAgeHistory.map(d=>d.age))];
   const years=[...new Set(riskAgeHistory.map(d=>d.year))].sort((a,b)=>a-b);
   const m={top:25,right:10,bottom:45,left:61};
-  if ($("#risk-view").selectedIndex === 1) {
-    const rows=riskAgeHistory.filter(d=>d.age===$("#risk-age").value).sort((a,b)=>a.year-b.year);
-    const max=Math.max(5,Math.ceil(Math.max(...rows.map(d=>d.rate))/5)*5);
-    const x=linear([years[0],years.at(-1)],[m.left,width-20]), y=linear([0,max],[height-m.bottom,20]);
-    yGrid(svg,y,[0,max/2,max],m.left,width-20,v=>v+"%");
-    xAxis(svg,x,[1985,1995,2005,2015,2025],height-m.bottom,String,"Year");
-    svg.append(s("polyline",{points:rows.map(d=>[x(d.year),y(d.rate)].join(",")).join(" "),fill:"none",stroke:"#8074a9","stroke-width":2}));
-    rows.forEach(d=>{const dot=s("circle",{cx:x(d.year),cy:y(d.rate),r:d.year===riskYear()?5:3,fill:"#8074a9"});dot.onclick=()=>setRiskYear(d.year);tip(dot,`${d.age} · ${d.year} · ${d.rate}%`);svg.append(dot);});
-    return;
-  }
   const cellWidth=(width-m.left-m.right)/years.length;
   const cellHeight=(height-m.top-m.bottom)/ages.length;
   const max=Math.max(...riskAgeHistory.map(d=>d.rate));
@@ -937,7 +966,7 @@ function renderRiskAgeTrend() {
         stroke:year===riskYear()?"#51436E":"none","stroke-width":selected?2:1,
         tabindex:"0",role:"button","aria-label":`${age}, ${year}, ${fmt(row.rate,1)}%`,
         "data-year":year,"data-age":age,style:"cursor:pointer"});
-      const choose=()=>{$("#risk-age").value=age;$("#risk-view").selectedIndex=1;hideTip();setRiskYear(year);};
+      const choose=()=>{$("#risk-age").value=age;hideTip();setRiskYear(year);};
       cell.addEventListener("click",choose);
       cell.addEventListener("keydown",e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();choose();}});
       tip(cell,`<strong>${age} · ${year}</strong>${fmt(row.rate,1)}% unemployment`);
@@ -980,7 +1009,7 @@ function syncYearOutput(id) {
 const renderers = {
   markets: () => {},
   structure: () => { syncYearOutput("#composition-year"); renderTotalEmployment(); renderIndustryShare(); renderStatus(); renderOccupation(); },
-  risk: () => { syncYearOutput("#risk-year"); renderEducationRisk(); renderUnemployment(); renderRiskGroup(); renderRiskAgeTrend(); },
+  risk: () => { syncYearOutput("#risk-year"); renderEducationRisk(); renderUnemployment(); renderRiskGroup(); renderRiskHeatmap(); renderCrisisRecovery(); },
   equity: () => { syncYearOutput("#gender-employment-year"); renderParticipation(); renderGenderEmployment(); renderPayTrend(); renderPayGap(); }
 };
 
@@ -1060,8 +1089,6 @@ function setupRiskControls() {
 }
 
 function setup() {
-  $("#equity-view").onchange = () => { selectedPayIndustry = null; renderGenderEmployment(); renderPayGap(); };
-  $("#risk-view").onchange = renderRiskAgeTrend;
   setupRiskControls();
   populateSelects();
   setupIndustryYear();

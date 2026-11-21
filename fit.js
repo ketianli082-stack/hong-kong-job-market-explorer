@@ -35,7 +35,6 @@
     focus: null,
     adjustment: "",
     vacancyMode: "count",
-    hiringView: "map",
     quarterIndex: 41,
     payYear: 2025,
     startYear: 2016,
@@ -349,7 +348,7 @@
     if (!values.length) return '<p class="ff-empty">No vacancy data for this period.</p>';
     // Match the actual available chart height so the bottom axis never gets cropped.
     const w = Math.max(310, Math.round(width || 490));
-    const height = Math.max(220, Math.round(availableHeight || 270));
+    const height = Math.max(125, Math.round(availableHeight || 270));
     const rateValues = values.map(row => row.rate * 100).filter(Number.isFinite);
     const growthValues = values.map(row => row.yoy * 100).filter(Number.isFinite);
     const allQuarterRows = fitData.vacancyHistory.filter(row => row.period === fitData.quarters[state.quarterIndex]);
@@ -538,10 +537,11 @@
           <div id="pay-hours-viz" class="ff-scatter-viz"></div>
         </figure>
         <figure class="ff-card ff-chart-hiring">
-          <div class="ff-card-head"><select id="hiring-view" aria-label="Hiring view"><option value="map">Hiring opportunities</option><option value="flow">Industry × Occupation Vacancies</option><option value="trend">Industry employment trend</option></select><span class="ff-quarter-value">2026 Q2</span></div>
+          <div class="ff-card-head"><h3>Industry × Occupation Vacancies</h3><span>2026 Q2</span></div>
           <div class="ff-map-holder" id="map-viz"></div>
-          <p class="ff-footnote" id="hiring-note"></p>
         </figure>
+        <figure class="ff-card ff-opportunities"><div class="ff-card-head"><h3>Hiring opportunities</h3><span>2026 Q2</span></div><div class="ff-map-holder" id="opportunities-viz"></div><p class="ff-footnote">Vacancy rate × employment growth (YoY) · Bubble size: vacancies</p></figure>
+        <figure class="ff-card ff-industry-history"><div class="ff-card-head"><h3>Industry employment trend</h3></div><div class="ff-map-holder" id="industry-history"></div><p class="ff-footnote">Employment index · 2016 Q1 = 100</p></figure>
         <figure class="ff-card ff-chart-budget">
           <div class="ff-card-head ff-budget-head">
             <div class="ff-budget-title-row">
@@ -614,12 +614,13 @@
       const r=5+Math.sqrt(employment/maxEmployment)*9;
       const tip=name+" · "+year+" · Median pay "+money(pay)+" · Weekly hours "+fmt(hours,1)+" · Employed "+fmt(employment,1)+" thousand";
       content+=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="${colors[i]}" opacity="${selectedTableauIndustry&&selectedTableauIndustry!==industry?.28:.95}" stroke="${selectedTableauIndustry===industry?"#51436E":"#fff"}" stroke-width="2" data-action="tableauIndustry" data-value="${esc(industry)}" data-tip="${esc(tip)}" tabindex="0" role="button" aria-label="${esc(tip)}" style="cursor:pointer"/>`;
-      const anchor=cx>(a.left+a.right)/2?"end":"start";
-      content+=text(cx+(anchor==="end"?-r-5:r+5),cy+(i%2?16:-9),name,anchor);
+      content+=`<text x="0" y="0" class="income-label" pointer-events="none">${esc(name)}</text>`;
     });
     content+=text((a.left+a.right)/2,h-6,"Monthly Median Earnings (HK$)");
     content+=`<text transform="translate(14,${(a.top+a.bottom)/2}) rotate(-90)" text-anchor="middle">Median Weekly Hours</text>`;
     container.innerHTML=svg(w,h,"Tableau industry income and weekly hours",content);
+    const plot=container.querySelector("svg"), labels=plot.querySelectorAll(".income-label");
+    labelScatter(plot,Array.from(plot.querySelectorAll("circle"),(dot,i)=>({x:+dot.getAttribute("cx"),y:+dot.getAttribute("cy"),r:+dot.getAttribute("r"),label:labels[i]})),{left:a.left+2,right:w-3,top:2,bottom:a.bottom-2});
   }
 
   function vacancyFlow(chosen) {
@@ -658,24 +659,30 @@
   function drawMap(chosen) {
     const container = $("#map-viz");
     if (!container) return;
-    $("#hiring-view").value = state.hiringView;
-    const period = fitData.quarters[state.quarterIndex];
-    const industries = chosen.filter(row=>!selectedTableauIndustry || broadGroup[row.id]===selectedTableauIndustry);
-    const ids = new Set(industries.map(row=>row.id));
-    const note = $("#hiring-note");
-    if (state.hiringView === "map") {
-      note.textContent = "Vacancy rate × employment growth (YoY) · Bubble size: vacancies";
-      container.innerHTML = bubbles(container.clientWidth,container.clientHeight,fitData.vacancyHistory.filter(row=>row.period===period && ids.has(row.id) && Number.isFinite(row.yoy)));
-    } else if (state.hiringView === "trend") {
-      note.textContent = "Employment index · 2016 Q1 = 100";
-      container.innerHTML = series(container.clientWidth,historySets(industries).sets,{
-        height:container.clientHeight, x:[2016,historyX(period)], xTicks:[2016,2020,2024],
-        refY:100, label:"Industry employment trend"
-      });
-    } else {
-      note.textContent = "Band width represents vacancies · 2026 Q2";
-      container.innerHTML = vacancyFlow(selectedVacancyIndustry ? industries.filter(row=>row.id===selectedVacancyIndustry) : industries);
-    }
+    const period=fitData.quarters[state.quarterIndex];
+    const industries=chosen.filter(row=>!selectedTableauIndustry||broadGroup[row.id]===selectedTableauIndustry);
+    const focused=selectedVacancyIndustry?industries.filter(row=>row.id===selectedVacancyIndustry):industries;
+    container.innerHTML=vacancyFlow(focused);
+    const map=$("#opportunities-viz"),history=$("#industry-history");
+    const ids=new Set(industries.map(row=>row.id));
+    map.innerHTML=bubbles(map.clientWidth,map.clientHeight,fitData.vacancyHistory.filter(row=>row.period===period&&ids.has(row.id)&&Number.isFinite(row.yoy)));
+    const { sets, end } = historySets(focused);
+    const indices = sets.flatMap(set => set.points.map(point => point[1])).filter(Number.isFinite);
+    const lower = Math.floor((Math.min(100, ...indices) - 2) / 5) * 5;
+    const upper = Math.ceil((Math.max(100, ...indices) + 2) / 5) * 5;
+    const step = upper - lower > 30 ? 10 : 5;
+    const yTicks = Array.from({ length: Math.floor((upper - lower) / step) + 1 }, (_, i) => lower + i * step);
+    history.innerHTML = series(history.clientWidth, sets, {
+      height: history.clientHeight,
+      x: [state.startYear, end],
+      xTicks: [2016, 2020, 2024].filter(year => year >= state.startYear && year <= end),
+      xFormat: String,
+      y: [lower, upper],
+      yTicks,
+      refY: 100,
+      label: "Industry employment trend"
+    });
+
   }
 
   function drawBudget(featured) {
@@ -714,17 +721,14 @@
   }
   function hideTip() { tooltip.classList.remove("visible"); }
   function bindEvents() {
-    $("#fit-app").addEventListener("change", event => {
-      if (event.target.id === "hiring-view") {selectedVacancyIndustry=null; state.hiringView=event.target.value; updateDashboard();}
-    });
     const app = $("#fit-app");
     app.addEventListener("click", event => {
       const target = event.target.closest("[data-action]");
       if (!target) return;
       const action = target.dataset.action;
-      if (action === "tableauIndustry") { selectedVacancyIndustry=null; state.hiringView="flow"; selectedTableauIndustry = selectedTableauIndustry===target.dataset.value?null:target.dataset.value; updateDashboard(); return; }
+      if (action === "tableauIndustry") { selectedVacancyIndustry=null; selectedTableauIndustry = selectedTableauIndustry===target.dataset.value?null:target.dataset.value; updateDashboard(); return; }
       if (action === "reset") {
-        selectedTableauIndustry=null; selectedVacancyIndustry=null; state.hiringView="map";
+        selectedTableauIndustry=null; selectedVacancyIndustry=null;
         Object.assign(state, { targetPay: 25000, maxHours: 42, payYear: 2025,
           focus: null, rent: 10000, living: 6500, deduct: 2000, adjustment: "", quarterIndex: fitData.quarters.length - 1 });
         render(); return;
@@ -737,7 +741,6 @@
         const match = fitContext().matched.find(row=>row.id===target.dataset.value);
         if (match) state.focus=match.name;
         selectedTableauIndustry=null;
-        state.hiringView="flow";
         selectedVacancyIndustry=target.dataset.value;
         updateDashboard(); return;
       }

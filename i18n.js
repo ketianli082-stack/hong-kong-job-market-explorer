@@ -5,6 +5,13 @@
 
   const storageKey = "hkjm-language";
   const full = {
+    "Unemployment trend for selected age group": "所选年龄组的历年失业率",
+    "Recovery after crises": "危机后恢复路径",
+    "Change in unemployment (pp)": "失业率变化（百分点）",
+    "Quarters since crisis began": "距危机开始的季度数",
+    "0 pp means back to the pre-crisis quarter’s rate.": "0 个百分点表示回到危机前一季的失业率。",
+    "Monthly pay gap (HKD)": "月收入差额（港元）",
+    "Women’s employment share and pay gap": "女性就业占比与收入差额",
     "Industry × Occupation Vacancies": "行业 × 职业空缺",
     "Review": "市场概览",
     "Employment shares": "就业占比",

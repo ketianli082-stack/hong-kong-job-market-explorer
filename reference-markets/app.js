@@ -316,7 +316,26 @@
   }
 
   function markets() {
-    return `<header class="chapter-header" id="market-compare"><h1>${t("两地对照","Two Markets")}</h1><span class="market-rates">${t("总体失业率 · 内地城镇 5.1%（2025年12月） · 香港 3.6%（2025年第四季度，未经季调）","Overall unemployment · Urban Mainland 5.1% (Dec 2025) · Hong Kong 3.6% (Q4 2025, unadjusted)")}</span></header>`
+    return `<header class="chapter-header" id="market-compare">
+      <div class="market-rates" role="group" aria-label="${t("总体与青年失业率","Overall and youth unemployment rates")}">
+        <span class="market-rate-title">${t("总体与青年失业率","Overall and youth unemployment")}</span>
+        <div class="market-rate">
+          <span>${t("内地城镇","Urban Mainland China")}</span><strong>5.1%</strong>
+          <small>${t("2025 年 12 月 · 全国城镇调查失业率","Dec 2025 · National urban surveyed unemployment rate")}</small>
+        </div>
+        <div class="market-rate">
+          <span>${t("香港","Hong Kong")}</span><strong>3.6%</strong>
+          <small>${t("2025 年第四季度 · 全港失业率，未经季节性调整","Q4 2025 · Territory-wide rate, not seasonally adjusted")}</small>
+        </div>
+        <div class="market-rate">
+          <span>${t("内地城镇青年","Urban Mainland youth")}</span><strong>16.5%</strong>
+          <small>${t("2025 年 12 月 · 16–24 岁，不含在校生","Dec 2025 · Ages 16–24, excluding students")}</small>
+        </div>
+        <div class="market-rate">
+          <span>${t("香港青年","Hong Kong youth")}</span><strong>12.3%</strong>
+          <small>${t("2025 年第四季度 · 20–24 岁，未经季节性调整","Q4 2025 · Ages 20–24, not seasonally adjusted")}</small>
+        </div>
+      </div></header>`
       + `<div class="grid wide-pair market-ages">`
       + marketAgeChart()
       + marketIndustryAge()
