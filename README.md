@@ -2,8 +2,8 @@
 
 这是一个基于 Tableau 工作簿数据制作的英文交互式就业市场网站。
 
-- [在线预览（GitHub Pages，跟随 main 最新版本）](https://ketianli082-stack.github.io/hong-kong-job-market-explorer/)
-- [叶同学最新版在线预览](https://ketianli082-stack.github.io/hong-kong-job-market-explorer/preview/ye/) · [查看更新分支](https://github.com/ketianli082-stack/hong-kong-job-market-explorer/tree/page1-ye)
+- **[打开叶同学最新仪表盘 · 首页 → 开始探索](https://ketianli082-stack.github.io/hong-kong-job-market-explorer/preview/ye/index.html?v=051cd82)** · [查看 page1-ye 分支](https://github.com/ketianli082-stack/hong-kong-job-market-explorer/tree/page1-ye)
+- [团队主站（main 版本）](https://ketianli082-stack.github.io/hong-kong-job-market-explorer/)
 
 > 网站使用 GitHub Pages 部署。仓库已配置 `.github/workflows/deploy-pages.yml`，提交到 `main` 后自动触发部署。首次使用时需要在 [Settings → Pages](https://github.com/ketianli082-stack/hong-kong-job-market-explorer/settings/pages) 将 Build and deployment 的 Source 设置为 **GitHub Actions**；在首次部署成功前，预览地址可能显示 404。
 
