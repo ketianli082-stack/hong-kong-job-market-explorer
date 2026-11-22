@@ -6,7 +6,7 @@
   <meta name="description" content="Interactive exploration of Hong Kong employment, pay and labour-market risk.">
   <title>Hong Kong Job Market Explorer</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..800&amp;family=Manrope:wght@600..800&amp;display=swap">
-  <link rel="stylesheet" href="styles.css?v=risk-legend">
+  <link rel="stylesheet" href="styles.css?v=risk-year-footer">
 </head>
 <body class="explore-page is-landing">
   <script>
@@ -67,7 +67,7 @@
             <small>0 pp means back to the pre-crisis quarter’s rate.</small>
           </figure>
           <figure class="viz-card"><div class="viz-heading"><div><h3>Unemployment by education</h3></div></div><ul id="education-legend" class="education-legend" aria-label="Education groups"></ul><div id="education-chart" class="chart education-chart-compact"></div></figure>
-          <figure class="viz-card"><div class="viz-heading"><div><h3>Unemployment by age</h3></div><span id="risk-age-year"></span></div><div id="risk-group-chart" class="chart h-300"></div></figure>
+          <figure class="viz-card"><div class="viz-heading"><div><h3>Unemployment by age</h3></div></div><div id="risk-group-chart" class="chart h-300"></div><span id="risk-age-year"></span></figure>
         <figure class="viz-card"><div class="viz-heading"><h3>Unemployment by age and year</h3></div><div id="risk-heatmap" class="chart"></div></figure>
         </div>
       </section>
@@ -89,10 +89,27 @@
       </section>
     </section>
   </main>
+  <script>
+    // Present the destination shell while the chart data is loading.
+    if (!document.body.classList.contains("is-landing")) {
+      const chapter = location.hash.slice(1);
+      const review = chapter === "markets" || chapter === "equity";
+      const panel = document.getElementById("chapter-" + chapter);
+      panel.hidden = false;
+      panel.classList.add("active");
+      document.querySelectorAll("[data-chapter]").forEach(tab => {
+        const selected = tab.dataset.chapter === chapter;
+        tab.hidden = ["markets", "equity"].includes(tab.dataset.chapter) !== review;
+        tab.classList.toggle("active", selected);
+        tab.setAttribute("aria-selected", String(selected));
+      });
+      document.querySelector(`[data-section="${review ? "review" : "explore"}"]`).classList.add("active");
+    }
+  </script>
   <div id="tooltip" class="tooltip" role="status" aria-live="polite"></div>
   <script src="scatter-labels.js" defer></script>
   <script src="i18n.js?v=crisis-recovery" defer></script>
-  <script src="app.js?v=risk-five" defer></script>
+  <script src="app.js?v=pay-slider-popup" defer></script>
 <script src="markets-bridge.js?v=1" defer></script>
 </body>
 </html>

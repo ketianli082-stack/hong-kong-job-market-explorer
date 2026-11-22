@@ -754,11 +754,9 @@ function renderPayTrend() {
   container.onYearSelected = year => {
     const index = years.indexOf(year);
     if (index < 0) return;
-    activeIndex = index;
-    if (pinnedIndex !== index) {
-      pinnedIndex = null;
-      clearYear();
-    }
+    if (activeChapter !== "equity") return;
+    pinnedIndex = index;
+    showYear(index);
   };
   target.addEventListener("pointermove", event => {
     if (pinnedIndex === null) showYear(indexAt(event));

@@ -5,6 +5,16 @@
 
   const storageKey = "hkjm-language";
   const full = {
+    "Where is employment growing?": "哪些行业用工在扩张？",
+    "Start year": "历史起始年",
+    "Employment change from the first quarter of the selected year": "用工变化以所选年份第一季度为基准",
+    "Industry income & working hours": "各行业收入与工时",
+    "Monthly Median Earnings (HK$)": "月薪中位数（港元）",
+    "Median Weekly Hours": "每周工时中位数",
+    "Tableau industry groups · Bubble size: employment · Click to filter vacancy flows": "按行业分类 · 气泡大小代表就业人数 · 点击筛选空缺流向",
+    "Vacancy heatmap": "行业职业空缺热力表",
+    "Industry share": "行业内占比",
+    "Vacancy count": "空缺人数",
     "Unemployment trend for selected age group": "所选年龄组的历年失业率",
     "Recovery after crises": "危机后恢复路径",
     "Change in unemployment (pp)": "失业率变化（百分点）",

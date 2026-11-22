@@ -34,10 +34,11 @@
     selected: [],
     focus: null,
     adjustment: "",
-    vacancyMode: "count",
+    vacancyMode: "share",
     quarterIndex: 41,
     payYear: 2025,
     startYear: 2016,
+    expansionYear: 2016,
     targetPay: 25000,
     maxHours: 42,
     offer: 25000,
@@ -275,7 +276,7 @@
             const opacity = .12 + .66 * Math.sqrt(value / (isCount ? max : 1));
             const text = isCount ? number(value) : percent(value * 100);
             const tip = `${occupation} · ${industry.name} · ${text}`;
-            return `<td><button type="button" data-action="selectIndustry" data-value="${esc(industry.id)}" data-tip="${esc(tip)}" aria-label="${esc(tip)}" aria-pressed="${state.selected.includes(industry.id)}" style="background:rgba(98,86,140,${opacity});color:${opacity > .62 ? "white" : "#282D33"}">${text}</button></td>`;
+            return `<td><button type="button" data-action="vacancyIndustry" data-value="${esc(industry.id)}" data-tip="${esc(tip)}" aria-label="${esc(tip)}" aria-pressed="${selectedVacancyIndustry === industry.id}" style="background:color-mix(in srgb,#783b74 ${opacity*100}%,#f8d7ed);color:${opacity > .62 ? "white" : "#282D33"}">${text}</button></td>`;
           }).join("");
           return `<tr><th scope="row">${esc(occupation)}</th>${values}</tr>`;
         }).join("")}</tbody></table></div>`;
@@ -531,45 +532,57 @@
         <span class="ff-sr-only" id="ff-adjustment" role="status" aria-live="polite"></span>
       </section>
       <div class="ff-dashboard-charts">
+        <figure class="ff-card ff-industry-history"><div class="ff-card-head"><h3>Industry employment trend</h3></div><div class="ff-map-holder" id="industry-history"></div><p class="ff-footnote">Employment index · 2016 Q1 = 100</p></figure>
+        <figure class="ff-card ff-chart-hiring">
+          <div class="ff-card-head"><h3>Industry × Occupation Vacancies</h3><span>2026 Q2</span></div>
+          <div class="ff-map-holder" id="map-viz"></div>
+        </figure>
         <figure class="ff-card ff-chart-scatter">
           <div class="ff-card-head"><h3>Industry income & working hours</h3><span data-year-label>${state.payYear}</span></div>
           <p class="ff-footnote">Tableau industry groups · Bubble size: employment · Click to filter vacancy flows</p>
           <div id="pay-hours-viz" class="ff-scatter-viz"></div>
         </figure>
-        <figure class="ff-card ff-chart-hiring">
-          <div class="ff-card-head"><h3>Industry × Occupation Vacancies</h3><span>2026 Q2</span></div>
-          <div class="ff-map-holder" id="map-viz"></div>
+        <figure class="ff-card ff-opportunities">
+          <div class="ff-card-head"><h3>Vacancy heatmap</h3><select id="vacancy-display" aria-label="Vacancy display"><option value="share">Industry share</option><option value="count">Vacancy count</option></select><span>2026 Q2</span></div>
+          <div id="opportunities-viz"></div>
         </figure>
-        <figure class="ff-card ff-opportunities"><div class="ff-card-head"><h3>Hiring opportunities</h3><span>2026 Q2</span></div><div class="ff-map-holder" id="opportunities-viz"></div><p class="ff-footnote">Vacancy rate × employment growth (YoY) · Bubble size: vacancies</p></figure>
-        <figure class="ff-card ff-industry-history"><div class="ff-card-head"><h3>Industry employment trend</h3></div><div class="ff-map-holder" id="industry-history"></div><p class="ff-footnote">Employment index · 2016 Q1 = 100</p></figure>
-        <figure class="ff-card ff-chart-budget">
-          <div class="ff-card-head ff-budget-head">
-            <div class="ff-budget-title-row">
-              <h3>Monthly Budget Forecast</h3>
-              <div class="ff-budget-control">
-                <button type="button" class="ff-action" data-action="expenses" aria-controls="budget-settings" aria-expanded="false" aria-haspopup="true">Edit expenses</button>
-                ${budgetSettings()}
-              </div>
-            </div>
-          </div>
-          <div class="ff-budget-row">
-            <div class="ff-budget-summary" aria-live="polite">
-              <span class="ff-budget-overline">Selected industry</span>
-              <strong id="budget-industry"></strong>
-              <span class="ff-budget-outcome-label">Estimated monthly surplus</span>
-              <strong id="budget-surplus"></strong>
-            </div>
-            <div class="ff-budget-viz" id="budget-viz"></div>
-          </div>
+        <figure class="ff-card ff-expansion">
+          <div class="ff-card-head"><h3>Where is employment growing?</h3><label>Start year <select id="expansion-year">${[...new Set(fitData.quarters.map(period=>period.slice(0,4)))].map(year=>`<option>${year}</option>`).join("")}</select></label></div>
+          <div class="ff-expansion-rows" id="expansion-rows"></div>
+          <p class="ff-footnote">Employment change from the first quarter of the selected year</p>
         </figure>
       </div>
     `;
+    $("#vacancy-display").value = state.vacancyMode;
+    $("#expansion-year").value = state.expansionYear;
+    drawExpansion();
     updateDashboard();
+  }
+
+  function drawExpansion() {
+    const rows = fitData.demand.map(industry => {
+      const points = fitData.history.filter(row => row.id === industry.id && historyX(row.period) >= state.expansionYear);
+      const values = points.map(row => row.value).filter(Number.isFinite);
+      const base = values[0];
+      if (!base) return null;
+      return { name: industry.name, values, change: (values.at(-1) / base - 1) * 100 };
+    }).filter(Boolean).sort((a,b) => b.change - a.change);
+    const max = Math.max(1, ...rows.map(row => Math.abs(row.change)));
+    $("#expansion-rows").innerHTML = rows.map(({name,values,change}) => {
+      const min = Math.min(...values), range = Math.max(...values) - min || 1;
+      const points = values.map((value,i) => `${i * 62 / Math.max(1,values.length-1)},${12 - 10*(value-min)/range}`).join(" ");
+      const direction = change >= 0 ? "gain" : "loss";
+      const label = change > 0 ? "+" + percent(change) : percent(change);
+      return `<div class="ff-expansion-row"><span title="${esc(name)}">${esc(name)}</span>
+        <svg viewBox="0 0 62 14" aria-hidden="true"><polyline points="${points}" fill="none" stroke="#8376aa" stroke-width="1.4"/></svg>
+        <span class="ff-expansion-bar"><i class="${direction}" style="width:${Math.abs(change)/max*50}%"></i></span>
+        <strong class="${direction}">${label}</strong></div>`;
+    }).join("");
   }
 
   function updateDashboard() {
     const ctx = fitContext();
-    const { matched, featured, chosen } = ctx;
+    const { matched, chosen } = ctx;
 
     updateSliderLimits();
     $("#match-total").textContent = String(matched.length);
@@ -577,12 +590,8 @@
     document.querySelector(".ff-dashboard-charts")?.style.setProperty("--fit-list-min-height", Math.max(370, matched.length * 26 + 98) + "px");
     drawPayHours();
     document.querySelectorAll("[data-year-label]").forEach(element => element.textContent = state.payYear);
-    $("#budget-industry").textContent = featured?.name || "";
-    const surplus = featured?.surplus ?? 0;
-    $("#budget-surplus").textContent = money(surplus);
-    $("#budget-surplus").classList.toggle("ff-budget-negative", surplus < 0);
-    drawMap(selectedTableauIndustry || selectedVacancyIndustry ? fitData.demand : state.focus && featured ? chosen.filter(row=>row.id===featured.id) : chosen);
-    drawBudget(featured);
+    drawMap(selectedTableauIndustry ? fitData.demand : chosen);
+
   }
 
   const broadGroup = {
@@ -623,14 +632,17 @@
     labelScatter(plot,Array.from(plot.querySelectorAll("circle"),(dot,i)=>({x:+dot.getAttribute("cx"),y:+dot.getAttribute("cy"),r:+dot.getAttribute("r"),label:labels[i]})),{left:a.left+2,right:w-3,top:2,bottom:a.bottom-2});
   }
 
-  function vacancyFlow(chosen) {
+  function vacancyFlow(chosen, width, height) {
     const ids = new Set(chosen.filter(row=>!selectedTableauIndustry||broadGroup[row.id]===selectedTableauIndustry).map(row => row.id));
     const rows = fitData.occupations.filter(row => ids.has(row.id) && row.count > 0);
     if (!rows.length) return '<p class="ff-empty">No matching vacancies.</p>';
     const sum = list => list.reduce((total,row)=>total+row.count,0);
     const left = [...new Set(rows.map(row=>row.id))].map(id=>({name:id,total:sum(rows.filter(row=>row.id===id))})).sort((a,b)=>b.total-a.total);
     const right = [...new Set(rows.map(row=>row.name))].map(name=>({name,total:sum(rows.filter(row=>row.name===name))})).sort((a,b)=>b.total-a.total);
-    const w=900,h=430,top=27,bottom=15,gap=9,nodeWidth=9,lx=150,rx=735;
+    const w=Math.max(340,width),h=Math.max(194,height);
+    const top=22,bottom=12,gap=5,nodeWidth=7;
+    const lx=Math.min(137,w*.33),rx=w-lx-nodeWidth;
+    const bend=(lx+nodeWidth+rx)/2;
     const total=sum(rows),scale=Math.min((h-top-bottom-gap*(left.length-1))/total,(h-top-bottom-gap*(right.length-1))/total);
     const colors=["#78578F","#B780AD","#65958D","#C48C50","#9F86B8","#7E86A2","#C28C9B","#908874","#B5A4BE","#78578F"];
     const layout=nodes=>{let y=top;nodes.forEach(node=>{node.y=y;node.offset=0;node.height=node.total*scale;y+=node.height+gap;});};
@@ -643,29 +655,37 @@
         const y1=node.y+node.offset,y2=target.y+target.offset;
         node.offset+=thickness;target.offset+=thickness;
         const tip=node.name+" → "+row.name+": "+fmt(row.count)+" vacancies (2026 Q2)";
-        content+=`<path d="M${lx+nodeWidth},${y1} C350,${y1} 535,${y2} ${rx},${y2} L${rx},${y2+thickness} C535,${y2+thickness} 350,${y1+thickness} ${lx+nodeWidth},${y1+thickness} Z" fill="${color}" opacity=".26" data-tip="${esc(tip)}" class="ff-vacancy-flow"><title>${esc(tip)}</title></path>`;
+        content+=`<path d="M${lx+nodeWidth},${y1} C${bend},${y1} ${bend},${y2} ${rx},${y2} L${rx},${y2+thickness} C${bend},${y2+thickness} ${bend},${y1+thickness} ${lx+nodeWidth},${y1+thickness} Z" fill="${color}" opacity=".26" data-tip="${esc(tip)}" class="ff-vacancy-flow"><title>${esc(tip)}</title></path>`;
       });
     });
     const short={"Social & personal services":"Social & personal","Information & communications":"Info & communications","Services and sales workers":"Services & sales","Plant and machine operators and assemblers":"Machine operators","Craft and related trades workers":"Craft & trades","Clerical support workers":"Clerical support","Skilled agricultural and fishery workers":"Agriculture & fishery"};
-    const nodes=(items,x,isLeft)=>items.map((node,i)=>{
-      const y=node.y+node.height/2,label=short[node.name]||node.name;
-      const words=label.split(" "),lines=[""];words.forEach(word=>{const last=lines.length-1;if((lines[last]+" "+word).trim().length>19&&lines[last])lines.push(word);else lines[last]=(lines[last]+" "+word).trim();});
-      const tx=isLeft?x-8:x+nodeWidth+8;
-      return `<g><rect x="${x}" y="${node.y}" width="${nodeWidth}" height="${node.height}" fill="${isLeft?colors[i%colors.length]:"#78578F"}"/><text x="${tx}" y="${y-(lines.length-1)*6-3}" text-anchor="${isLeft?"end":"start"}" fill="#665B70" font-size="10">${lines.map((line,j)=>`<tspan x="${tx}" dy="${j?12:0}">${esc(line)}</tspan>`).join("")}<tspan x="${tx}" dy="13" font-size="9">${fmt(node.total)}</tspan></text></g>`;
-    }).join("");
+    const nodes=(items,x,isLeft)=>{
+      const spacing=14;
+      let previous=top-spacing;
+      return items.map((node,i)=>{
+        const center=node.y+node.height/2;
+        const labelY=Math.min(h-bottom-(items.length-1-i)*spacing,Math.max(center,previous+spacing));
+        previous=labelY;
+        const edge=isLeft?x:x+nodeWidth;
+        const tx=edge+(isLeft?-7:7);
+        const label=short[node.name]||node.name;
+        return `<g><title>${esc(node.name)} · ${fmt(node.total)}</title>
+          <rect x="${x}" y="${node.y}" width="${nodeWidth}" height="${node.height}" fill="${isLeft?colors[i%colors.length]:"#78578F"}"/>
+          <line x1="${edge}" y1="${center}" x2="${tx}" y2="${labelY}" stroke="#b2a6b9"/>
+          <text class="ff-flow-label" x="${tx}" y="${labelY}" dominant-baseline="central" text-anchor="${isLeft?"end":"start"}">${esc(label)} · ${fmt(node.total)}</text></g>`;
+      }).join("");
+    };
     return `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Industry to occupation vacancy flows in 2026 Q2">${content}${nodes(left,lx,true)}${nodes(right,rx,false)}</svg>`;
   }
 
   function drawMap(chosen) {
     const container = $("#map-viz");
     if (!container) return;
-    const period=fitData.quarters[state.quarterIndex];
     const industries=chosen.filter(row=>!selectedTableauIndustry||broadGroup[row.id]===selectedTableauIndustry);
     const focused=selectedVacancyIndustry?industries.filter(row=>row.id===selectedVacancyIndustry):industries;
-    container.innerHTML=vacancyFlow(focused);
+    container.innerHTML=vacancyFlow(focused, container.clientWidth, container.clientHeight);
     const map=$("#opportunities-viz"),history=$("#industry-history");
-    const ids=new Set(industries.map(row=>row.id));
-    map.innerHTML=bubbles(map.clientWidth,map.clientHeight,fitData.vacancyHistory.filter(row=>row.period===period&&ids.has(row.id)&&Number.isFinite(row.yoy)));
+    map.innerHTML=industries.length ? heatTable(occupationOrder, industries) : '<p class="ff-empty">No matching vacancies.</p>';
     const { sets, end } = historySets(focused);
     const indices = sets.flatMap(set => set.points.map(point => point[1])).filter(Number.isFinite);
     const lower = Math.floor((Math.min(100, ...indices) - 2) / 5) * 5;
@@ -722,6 +742,16 @@
   function hideTip() { tooltip.classList.remove("visible"); }
   function bindEvents() {
     const app = $("#fit-app");
+    app.addEventListener("change", event => {
+      if (event.target.id === "expansion-year") {
+        state.expansionYear = Number(event.target.value);
+        drawExpansion();
+        return;
+      }
+      if (event.target.id !== "vacancy-display") return;
+      state.vacancyMode = event.target.value;
+      updateDashboard();
+    });
     app.addEventListener("click", event => {
       const target = event.target.closest("[data-action]");
       if (!target) return;
@@ -736,6 +766,11 @@
       if (action === "focusIndustry") {
         state.focus = state.focus === target.dataset.value ? null : target.dataset.value;
         updateDashboard(); return;
+      }
+      if (action === "vacancyIndustry") {
+        selectedVacancyIndustry = selectedVacancyIndustry === target.dataset.value ? null : target.dataset.value;
+        updateDashboard();
+        return;
       }
       if (action === "bubble") {
         const match = fitContext().matched.find(row=>row.id===target.dataset.value);
