@@ -489,9 +489,21 @@ function renderParticipation() {
     }, "Age (years)"));
 
     if (linked) {
-      const points = ages.map(age => rows.find(row => row.sex === sex && row.age === age)).filter(Boolean);
-      svg.appendChild(s("path", { d: linePath(points.map(row => [x(ages.indexOf(row.age)), y(row.rate)])),
-        fill: "none", stroke: sex === "Male" ? maleColor : femaleColor, "stroke-width": 2 }));
+      const points = ages.flatMap((age, i) => {
+        const row = rows.find(row => row.sex === sex && row.age === age);
+        return row ? [[x(i), y(row.rate)]] : [];
+      });
+      if (points.length) {
+        const color = sex === "Male" ? maleColor : femaleColor;
+        const curve = linePath(points);
+        const gradientId = `participation-area-${index}`;
+        const gradient = s("linearGradient", { id: gradientId, x2: "0%", y2: "100%" });
+        gradient.append(s("stop", { offset: "0%", "stop-color": color, "stop-opacity": .29 }),
+          s("stop", { offset: "100%", "stop-color": color, "stop-opacity": .03 }));
+        svg.append(gradient,
+          s("path", { d: `${curve} L${points.at(-1)[0]},${baseline} L${points[0][0]},${baseline} Z`, fill: `url(#${gradientId})`, "pointer-events": "none" }),
+          s("path", { d: curve, fill: "none", stroke: color, "stroke-width": 2.4 }));
+      }
     }
     rows.filter(row => row.sex === sex).forEach(row => {
       const yearIndex = years.findIndex(item => item.year === row.year);
@@ -520,6 +532,13 @@ const industryEmploymentAliases = {
 };
 
 let selectedPayIndustry = null;
+function renderSexLegend(svg, width) {
+  [["Male", maleColor], ["Female", femaleColor]].forEach(([name, color], i) => {
+    const legendX = width - 124 + i * 60;
+    svg.append(s("circle", { cx: legendX + 4, cy: 9, r: 4, fill: color }),
+      s("text", { x: legendX + 12, y: 13, class: "tick-label" }, name));
+  });
+}
 function renderGenderEmployment() {
   renderRepresentationGap();
   const { svg, width, height } = makeSvg("#gender-employment-chart");
@@ -551,21 +570,40 @@ function renderGenderEmployment() {
     const labels = segments.map(({ start, end, share, color, sex }) => {
       const startX = x(start), endX = x(end);
       const percentage = `${fmt(share, 2)}%`;
-      const label = s("text", { x: (startX + endX) / 2, "text-anchor": "middle", "font-size": 11, "font-weight": 650, "pointer-events": "none" }, percentage);
+      const label = s("text", { x: (startX + endX) / 2, "text-anchor": "middle", "font-size": 9, "font-weight": 400, "pointer-events": "none" }, percentage);
       svg.appendChild(label);
       return { startX, endX, label, labelWidth: label.getComputedTextLength(), percentage, color, sex };
     });
     const barHeight = 13;
     const barTop = center - barHeight / 2;
+    const clipId = `gender-employment-bar-${index}`;
+    const clip = s("clipPath", { id: clipId });
+    clip.appendChild(s("rect", {
+      x: x(0), y: barTop, width: x(100) - x(0), height: barHeight, rx: barHeight / 2
+    }));
+    svg.appendChild(clip);
     for (const { startX, endX, label, labelWidth, percentage, color, sex } of labels) {
-      const bar = s("rect", { x: startX, y: barTop, width: endX - startX, height: barHeight, fill: color });
+      const bar = s("rect", { x: startX, y: barTop, width: endX - startX, height: barHeight, fill: color, "clip-path": `url(#${clipId})` });
       tip(bar, `<strong>${industry} · ${sex} · ${year}</strong>${percentage}`);
       svg.insertBefore(bar, label);
-      const fitsInside = endX - startX >= labelWidth + 6;
+      if (index === 0 && sex === "Female") {
+        label.setAttribute("fill", "#51436E");
+        label.setAttribute("x", endX);
+        label.setAttribute("text-anchor", "end");
+        label.setAttribute("y", barTop - 4);
+        continue;
+      }
+      const available = endX - startX - 3;
+      const size = clamp(9 * available / labelWidth, 7, 9);
+      label.setAttribute("font-size", size);
+      if (label.getComputedTextLength() > available) {
+        label.textContent = `${fmt(Number(percentage.replace("%", "")), 0)}%`;
+      }
+      const textWidth = label.getComputedTextLength();
+      const fitsInside = textWidth <= available;
       label.setAttribute("fill", fitsInside ? "#fff" : "#282D33");
-      if (fitsInside) label.setAttribute("font-weight", 400);
-      label.setAttribute("y", fitsInside ? barTop + barHeight / 2 + 4 : barTop - 2);
-      if (!fitsInside) label.setAttribute("x", clamp((startX + endX) / 2, x(0) + labelWidth / 2, x(100) - labelWidth / 2));
+      label.setAttribute("y", fitsInside ? center + size * .34 : barTop - 2);
+      if (!fitsInside) label.setAttribute("x", clamp((startX + endX) / 2, x(0) + textWidth / 2, x(100) - textWidth / 2));
     }
   });
 }
@@ -585,11 +623,7 @@ function renderPayGap() {
   ticks.slice(1, -1).forEach(value => {
     svg.appendChild(s("line", { x1: x(value), x2: x(value), y1: m.top, y2: baseline, class: "grid-line" }));
   });
-  [["Male", maleColor], ["Female", femaleColor]].forEach(([name, color], i) => {
-    const legendX = 4 + i * 60;
-    svg.append(s("circle", { cx: legendX + 4, cy: 9, r: 4, fill: color }),
-      s("text", { x: legendX + 12, y: 13, class: "tick-label" }, name));
-  });
+  renderSexLegend(svg, width);
   xAxis(svg, x, ticks, baseline, value => `${fmt(value / 1000, 0)}k`, "Median monthly earnings (HKD)");
 
   industries.forEach(([industry, alias], index) => {
@@ -597,9 +631,21 @@ function renderPayGap() {
     const [male, female] = industryPayBySex[year][industry];
     const gap = male - female;
     const y = m.top + (index + .5) * rowHeight;
-    const line = s("line", { x1: x(female), x2: x(male), y1: y, y2: y, stroke: "#C5BFBE", "stroke-width": 3 });
-    const femaleDot = s("circle", { cx: x(female), cy: y, r: 6, fill: femaleColor });
-    const maleDot = s("circle", { cx: x(male), cy: y, r: 6, fill: maleColor });
+    const gradientId = `industry-pay-gradient-${index}`;
+    const gradient = s("linearGradient", {
+      id: gradientId, gradientUnits: "userSpaceOnUse", x1: x(male), x2: x(female), y1: y, y2: y
+    });
+    gradient.append(
+      s("stop", { offset: "0%", "stop-color": maleColor }),
+      s("stop", { offset: "100%", "stop-color": femaleColor })
+    );
+    svg.append(gradient);
+    const line = s("line", {
+      x1: x(female), x2: x(male), y1: y, y2: y,
+      stroke: `url(#${gradientId})`, "stroke-width": 2, "stroke-opacity": .8
+    });
+    const femaleDot = s("circle", { cx: x(female), cy: y, r: 6, fill: femaleColor, "fill-opacity": .62, stroke: "#973e5e", "stroke-width": 1.2 });
+    const maleDot = s("circle", { cx: x(male), cy: y, r: 6, fill: maleColor, "fill-opacity": .62, stroke: "#5c507e", "stroke-width": 1.2 });
     tip(femaleDot, `<strong>${industry} · Female · ${year}</strong>HK$${fmt(female)}`);
     tip(maleDot, `<strong>${industry} · Male · ${year}</strong>HK$${fmt(male)}<br>Gap HK$${fmt(gap)}`);
     svg.append(line, femaleDot, maleDot,
@@ -642,7 +688,7 @@ function renderRepresentationGap() {
   const marks=[], max=Math.max(...rows.map(d=>d.employment));
   rows.sort((a,b)=>b.employment-a.employment).forEach(({industry,share,gap,employment}) => {
     const radius=Math.sqrt(employment/max)*Math.min(21,height/11);
-    const dot=s("circle",{cx:x(share),cy:y(gap),r:radius,fill:gapColor(gap),stroke:"white",tabindex:0,role:"button","aria-label":industry,opacity:!selectedPayIndustry||selectedPayIndustry===industry?1:.25});
+    const dot=s("circle",{cx:x(share),cy:y(gap),r:radius,fill:gapColor(gap),"fill-opacity":.8,stroke:"white",tabindex:0,role:"button","aria-label":industry,opacity:!selectedPayIndustry||selectedPayIndustry===industry?1:.25});
     tip(dot,`<strong>${industryEmploymentAliases[industry]} · ${year}</strong>${fmt(share,1)}% · HK$${fmt(gap)}`);
     const choose=()=>{selectedPayIndustry=selectedPayIndustry===industry?null:industry;hideTip();renderGenderEmployment();renderPayGap();};
     dot.onclick=choose;

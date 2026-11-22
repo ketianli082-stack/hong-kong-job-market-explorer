@@ -348,7 +348,7 @@ svg{display:block;width:100%;height:100%;overflow:visible}.axis-label,.tick-labe
   .market-period-buttons { justify-content: flex-start; }
 }
 
-.education-legend { display: flex; flex-wrap: wrap; gap: 1px 8px; margin: 0 0 6px; padding: 0; list-style: none; }
+.education-legend { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 1px 8px; margin: 0 0 6px; padding: 0; list-style: none; }
 .education-legend button { display: flex; align-items: center; gap: 5px; border: 0; border-radius: 4px; padding: 3px; color: var(--muted); background: transparent; font: inherit; font-size: 10px; line-height: 1.2; text-align: left; cursor: pointer; }
 .education-legend button::before { content: ""; flex: none; width: 7px; height: 7px; border-radius: 2px; background: var(--education-color); }
 .education-legend button[aria-pressed="true"] { background: #EEE9F6; color: var(--ink); }
@@ -1015,14 +1015,16 @@ input[type="range"]:focus-visible { outline:2px solid #8074A8; outline-offset:5p
 .fit-page .ff-dashboard-charts > .ff-card { grid-column:auto; }
 .fit-page .ff-chart-scatter,.fit-page .ff-chart-hiring { min-height:480px; }
 .fit-page #pay-hours-viz svg text { font-size:10px; }
+.fit-page #pay-hours-viz svg text:not(.income-label) { font-size:12px; }
+@media(max-width:800px) { .fit-page .ff-dashboard-charts { grid-template-columns:minmax(0,1fr); } }
 
-@media (max-width:999px), (max-height:799px) {
+@media (max-width:999px), (max-height:649px) {
  .fit-page, .fit-page main, .fit-page .ff-shell { height:auto; overflow:visible; }
  .fit-page .ff-dashboard-charts { flex:none; }
 }
 
 @media (min-width:1000px) {
- .fit-page .ff-dashboard-charts { grid-template-columns:repeat(6,minmax(0,1fr)); grid-template-rows:repeat(2,minmax(300px,1fr)); }
+ .fit-page .ff-dashboard-charts { grid-template-columns:repeat(6,minmax(0,1fr)); grid-template-rows:repeat(2,minmax(0,1fr)); }
  .fit-page .ff-dashboard-charts > .ff-card { grid-column:span 2; }
  .fit-page .ff-dashboard-charts > :is(.ff-chart-hiring,.ff-opportunities) { grid-column:span 3; }
  .fit-page .ff-chart-scatter,.fit-page .ff-chart-hiring { min-height:0!important; padding:10px 12px; }
@@ -1031,7 +1033,7 @@ input[type="range"]:focus-visible { outline:2px solid #8074A8; outline-offset:5p
  .fit-page .ff-chart-hiring .ff-map-holder svg { min-height:0; height:100%; width:100%; }
 }
 
-@media (min-width:1000px) and (min-height:800px) {
+@media (min-width:1000px) and (min-height:650px) {
  .fit-page { height:100dvh; overflow:auto; }
  .fit-page main { height:calc(100dvh - 44px); overflow:visible; }
  .fit-page .ff-shell { height:100%; min-height:0; padding:10px 16px; overflow:visible; }
@@ -1077,11 +1079,10 @@ input[type="range"]:focus-visible { outline:2px solid #8074A8; outline-offset:5p
 }
 
 #chapter-equity .equity-year { align-self:flex-end; flex:none; color:var(--purple); font-size:10px; font-weight:400; line-height:10px; }
-.pay-gap-legend { width:112px; padding-bottom:12px; align-self:flex-end; color:var(--muted); font-size:10px; line-height:12px; }
-.pay-gap-legend i { display:block; height:5px; border-radius:3px; background:linear-gradient(to right,#de915c,#e0d3dd 9.09%,#8f4c84); }
-.pay-gap-legend div { display:flex; justify-content:space-between; }
-.pay-gap-legend div { position:relative; }
-.pay-gap-legend div span:nth-child(2) { position:absolute; left:9.09%; top:12px; transform:translateX(-50%); }
+.pay-gap-legend { --zero-position:36%; width:112px; align-self:flex-end; color:var(--muted); font-size:10px; line-height:12px; }
+.pay-gap-legend i { display:block; height:5px; border-radius:3px; background:linear-gradient(to right,#de915c,#e0d3dd var(--zero-position),#8f4c84); }
+.pay-gap-legend div { display:flex; justify-content:space-between; position:relative; }
+.pay-gap-legend div span:nth-child(2) { position:absolute; left:var(--zero-position); transform:translateX(-50%); }
 
 .recovery-heading { flex-wrap:wrap; }
 .recovery-legend { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:4px 10px; margin:0 0 0 auto; padding:0; list-style:none; font-size:11px; }
@@ -1126,4 +1127,54 @@ input[type="range"]:focus-visible { outline:2px solid #8074A8; outline-offset:5p
 .fit-page #opportunities-viz .ff-heat th {
   white-space:normal;
   overflow-wrap:anywhere;
+}
+
+.fit-page #industry-history svg text {
+  font: 400 11px var(--font);
+  fill: var(--muted);
+}
+.fit-page .ff-chart-date {
+  align-self:flex-end; flex:none; font-size:10px; font-weight:400;
+  line-height:1; color:var(--muted);
+}
+.fit-page #vacancy-display, .fit-page .ff-expansion .ff-card-head label {
+  margin-inline-start:auto;
+}
+.fit-page .ff-dashboard-charts .ff-footnote {text-align:right;}
+.fit-page #opportunities-viz .ff-heat thead th {font-size:9px; line-height:1.2;}
+
+
+.explore-page .participation-heading .participation-controls {
+  flex:1 1 255px;
+  align-items:center;
+  flex-wrap:nowrap;
+  justify-content:flex-end;
+  margin-bottom:0;
+}
+.explore-page .participation-heading .participation-controls label {min-width:0;}
+.explore-page .participation-heading .participation-controls select {max-width:100%;}
+.participation-controls #participation-play {flex:none; inline-size:4.5rem; padding-inline:0; white-space:nowrap;}
+.participation-toolbar:has(.participation-legend[hidden]) {display:none;}
+
+.fit-page #opportunities-viz .ff-heat-value {border-radius:2px;vertical-align:middle;}
+
+.fit-page #opportunities-viz .ff-heat tbody th {padding-block:2px; vertical-align:middle;}
+.ff-occupation-label {
+  display:-webkit-box;
+  -webkit-box-orient:vertical;
+  -webkit-line-clamp:2;
+  height:22px;
+  overflow:hidden;
+  overflow-wrap:anywhere;
+  align-content:center;
+  font-size:9px;
+  line-height:11px;
+}
+
+.employment-sex-legend {position:relative; top:-3px; display:flex; gap:8px; margin-inline-start:auto; white-space:nowrap; color:var(--muted); font-size:12px;}
+.employment-sex-legend span::before {content:""; display:inline-block; margin-inline-end:4px; width:7px; height:7px; border-radius:50%; background:#7f74a7;}
+.employment-sex-legend span + span::before {background:#be6482;}
+
+@media (min-width:1000px) and (min-height:650px) {
+ .fit-page .ff-dashboard-charts > .ff-card {min-height:0;}
 }

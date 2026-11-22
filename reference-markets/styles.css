@@ -886,9 +886,11 @@ circle.market-age-picked { stroke:#fff; stroke-width:1.4; r:4.8px; }
 
 #mainland-mix .trend-legend {
   flex-wrap:nowrap;
-  gap:5px;
+  justify-content:flex-end;
+  margin-inline-start:auto;
+  gap:clamp(2px,.4vw,5px);
   white-space:nowrap;
-  font-size:10px;
+  font-size:clamp(10px,1vw,12px);
 }
 #mainland-mix .trend-legend > span { gap:3px; }
 #mainland-mix .trend-legend i { width:6px; height:6px; flex:none; }
@@ -920,3 +922,7 @@ circle.market-age-picked { stroke:#fff; stroke-width:1.4; r:4.8px; }
 @media (min-width:850px) {
   #market-compare .market-rates {grid-template-columns:repeat(4,minmax(0,1fr));}
 }
+
+#age-trends .trend-legend {justify-content:flex-end; margin-inline-start:auto;}
+
+#content #hk-snapshot .market-heading {align-items:flex-end;}

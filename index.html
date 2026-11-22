@@ -6,7 +6,7 @@
   <meta name="description" content="Interactive exploration of Hong Kong employment, pay and labour-market risk.">
   <title>Hong Kong Job Market Explorer</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..800&amp;family=Manrope:wght@600..800&amp;display=swap">
-  <link rel="stylesheet" href="styles.css?v=risk-year-footer">
+  <link rel="stylesheet" href="styles.css?v=gap-legend-zero">
 </head>
 <body class="explore-page is-landing">
   <script>
@@ -41,7 +41,7 @@
         <button class="active" role="tab" aria-selected="true" id="tab-structure" aria-controls="chapter-structure" data-chapter="structure"><span>03</span><strong>Employment Structure</strong></button>
       </div>
       <section class="chapter-panel" id="chapter-markets" data-panel="markets" role="tabpanel" aria-labelledby="tab-markets" hidden>
-        <iframe id="markets-reference" title="Mainland China and Hong Kong employment comparison" src="reference-markets/index.html?v=market-lavender&theme=light&lang=zh-Hans#markets" loading="lazy"></iframe>
+        <iframe id="markets-reference" title="Mainland China and Hong Kong employment comparison" src="reference-markets/index.html?v=hk-age-online-colors&theme=light&lang=zh-Hans#markets" loading="lazy"></iframe>
       </section>
       <section class="chapter-panel" id="chapter-structure" data-panel="structure" role="tabpanel" aria-labelledby="tab-structure" hidden>
         <header class="chapter-heading"><span>03 · EMPLOYMENT STRUCTURE</span><h2>Where Hong Kong Works</h2><p>Employment scale, industry composition and the occupations behind the market.</p><label class="year-slider">Year <input id="composition-year" type="range" min="2016" max="2025" step="1" value="2025"><output for="composition-year">2025</output></label></header>
@@ -78,11 +78,11 @@
           <figure class="viz-card primary-viz"><div class="viz-heading"><div><h3>Median monthly pay by industry</h3></div></div><div id="pay-gap-chart" class="chart h-300"></div><span class="equity-year" id="industry-pay-year-label"></span></figure>
           <figure class="viz-card">
             <div class="viz-heading participation-heading"><div><h3>Participation by age and sex</h3></div>
-            <div class="participation-controls"><label>View <select id="participation-mode"><option value="linked">Selected year</option><option value="compare">Three-year comparison</option></select></label></div></div>
-            <div class="participation-toolbar"><ul id="participation-legend" class="participation-legend" aria-label="Years"></ul><div class="participation-playback"><button type="button" id="participation-play">Play</button><span class="participation-play-range">2008–2025</span></div></div>
+            <div class="participation-controls"><label>View <select id="participation-mode"><option value="linked">Selected year</option><option value="compare">Three-year comparison</option></select></label><button type="button" id="participation-play">Play</button></div></div>
+            <div class="participation-toolbar"><ul id="participation-legend" class="participation-legend" aria-label="Years"></ul></div>
             <div id="participation-chart" class="chart" role="img" aria-label="Labour-force participation rates for men and women by age group in 1985, 2005 and 2025"></div>
           <span class="equity-year" id="participation-selected-year"></span></figure>
-          <figure class="viz-card"><div class="viz-heading"><div><h3>Employment by industry and sex</h3></div></div><div id="gender-employment-chart" class="chart h-280"></div><span class="equity-year" id="gender-employment-year-label"></span></figure>
+          <figure class="viz-card"><div class="viz-heading"><div><h3>Employment by industry and sex</h3></div></div><div class="employment-sex-legend"><span>Male</span><span>Female</span></div><div id="gender-employment-chart" class="chart h-280"></div><span class="equity-year" id="gender-employment-year-label"></span></figure>
           <figure class="viz-card"><div class="viz-heading"><h3>Women’s employment share and pay gap</h3></div><div class="pay-gap-legend"><span>Monthly pay gap (HKD)</span><i aria-hidden="true"></i><div><span>−1.5k</span><span>0k</span><span>15k+</span></div></div><div class="chart" id="representation-chart"></div><span class="equity-year" id="representation-chart-label"></span></figure>
         </div>
 
@@ -109,7 +109,7 @@
   <div id="tooltip" class="tooltip" role="status" aria-live="polite"></div>
   <script src="scatter-labels.js" defer></script>
   <script src="i18n.js?v=crisis-recovery" defer></script>
-  <script src="app.js?v=pay-slider-popup" defer></script>
+  <script src="app.js?v=participation-linear-area" defer></script>
 <script src="markets-bridge.js?v=1" defer></script>
 </body>
 </html>

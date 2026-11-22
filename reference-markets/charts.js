@@ -81,24 +81,33 @@
         for (const [x,y] of s.points) if (Number.isFinite(y)) coords.push([a.x(x), a.y(y)]);
         if (coords.length) {
           const top = coords.map((p,i)=>`${i?"L":"M"}${p[0]},${p[1]}`).join(" ");
-          areaPath = `<path d="M${coords[0][0]},${a.bottom} ${top} L${coords.at(-1)[0]},${a.bottom} Z" fill="url(#${gid})" stroke="none"/>`;
+          areaPath = `<path d="${top} L${coords.at(-1)[0]},${a.bottom} L${coords[0][0]},${a.bottom} Z" fill="url(#${gid})" stroke="none"/>`;
         }
       }
-      out += areaPath + `<g class="series-g" data-ind="${s.key ?? ""}" opacity="${s.opacity ?? 1}">`;
+      out += `<g class="series-g" data-ind="${s.key ?? ""}" opacity="${s.opacity ?? 1}">` + areaPath;
       let draw = "", pen = false;
       for (const [x,y] of s.points) {
         if (!Number.isFinite(y)) { pen = false; continue; }
         draw += `${pen ? "L" : "M"}${a.x(x)},${a.y(y)} `;
         pen = true;
       }
-      out += `<path d="${draw}" fill="none" stroke="${s.color}" stroke-width="${s.strokeWidth ?? 2.4}" stroke-linejoin="round" stroke-linecap="round"${s.dash ? ' stroke-dasharray="5 3"' : ""}/>`;
+      let stroke = s.color;
+      if (opt.gradientStroke) {
+        const id = "series-stroke-" + (++gradSeq);
+        defs += `<linearGradient id="${id}" gradientUnits="userSpaceOnUse" x1="0" x2="0" y1="${a.top}" y2="${a.bottom}">
+          <stop offset="0%" stop-color="${s.color}"/>
+          <stop offset="100%" stop-color="${s.color}" stop-opacity=".55"/>
+        </linearGradient>`;
+        stroke = `url(#${id})`;
+      }
+      out += `<path d="${draw}" fill="none" stroke="${stroke}" stroke-width="${s.strokeWidth ?? 2.4}" stroke-linejoin="round" stroke-linecap="round"${s.dash ? ' stroke-dasharray="5 3"' : ""}/>`;
       for (const [x,y,extra] of s.points) {
         if (!Number.isFinite(y)) continue;
         const tip = extra ?? `${s.name} · ${(opt.xFormat ?? number)(x)} · ${(opt.yFormat ?? number)(y)}`;
         const selected = x === opt.refX;
         const r = selected ? 4.7 : s.points.length > 55 ? 2.1 : 3.1;
         const action = !opt.canSelect || opt.canSelect(x) ? opt.action : null;
-        out += `<circle cx="${a.x(x)}" cy="${a.y(y)}" r="${r}" fill="${s.color}" ${mark(tip,action,s.pointValue?.(x) ?? x,undefined,`${action}:${s.key ?? s.name}:${x}`)}/>`;
+        out += `<circle cx="${a.x(x)}" cy="${a.y(y)}" r="${r}" fill="${s.color}" ${opt.area ? 'stroke="#fff" stroke-width="1"' : ""} ${mark(tip,action,s.pointValue?.(x) ?? x,undefined,`${action}:${s.key ?? s.name}:${x}`)}/>`;
       }
       out += "</g>";
     }

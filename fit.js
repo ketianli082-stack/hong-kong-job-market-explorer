@@ -271,9 +271,9 @@
             const opacity = .12 + .66 * Math.sqrt(share);
             const text = percent(share * 100);
             const tip = `${occupation} · ${industry.name} · ${text}`;
-            return `<td><button type="button" data-action="vacancyIndustry" data-value="${esc(industry.id)}" data-tip="${esc(tip)}" aria-label="${esc(tip)}" aria-pressed="${selectedVacancyIndustry === industry.id}" style="background:color-mix(in srgb,#783b74 ${opacity*100}%,#f8d7ed);color:${opacity > .62 ? "white" : "#282D33"}">${text}</button></td>`;
+            return `<td class="ff-heat-value" style="background:color-mix(in srgb,#783b74 ${opacity*100}%,#f8d7ed)"><button type="button" data-action="vacancyIndustry" data-value="${esc(industry.id)}" data-tip="${esc(tip)}" aria-label="${esc(tip)}" aria-pressed="${selectedVacancyIndustry === industry.id}" style="background:transparent;color:${opacity > .62 ? "white" : "#282D33"}">${text}</button></td>`;
           }).join("");
-          return `<tr><th scope="row">${esc(occupation)}</th>${values}</tr>`;
+          return `<tr><th scope="row" title="${esc(occupation)}"><span class="ff-occupation-label">${esc(occupation)}</span></th>${values}</tr>`;
         }).join("")}</tbody></table></div>`;
   }
 
@@ -528,9 +528,10 @@
       </section>
       <div class="ff-dashboard-charts">
         <figure class="ff-card ff-chart-scatter">
-          <div class="ff-card-head"><h3>Industry income & working hours</h3><span data-year-label>${state.payYear}</span></div>
+          <div class="ff-card-head"><h3>Industry income & working hours</h3></div>
           <p class="ff-footnote"><span>Tableau industry groups · Bubble size: employment · Click to filter vacancy flows</span> · <span id="pay-hours-criteria"></span></p>
           <div id="pay-hours-viz" class="ff-scatter-viz"></div>
+          <span class="ff-chart-date" data-year-label>${state.payYear}</span>
         </figure>
         <figure class="ff-card ff-industry-history"><div class="ff-card-head"><h3>Industry employment trend</h3></div><div class="ff-map-holder" id="industry-history"></div><p class="ff-footnote">Employment index · 2016 Q1 = 100</p></figure>
         <figure class="ff-card ff-expansion">
@@ -540,12 +541,14 @@
             <span>Highlighted industries have at least one segment whose median pay and hours meet both limits in the selected pay year.</span></p>
         </figure>
         <figure class="ff-card ff-chart-hiring">
-          <div class="ff-card-head"><h3>Industry × Occupation Vacancy Counts</h3><span>2026 Q2</span></div>
+          <div class="ff-card-head"><h3>Industry × Occupation Vacancy Counts</h3></div>
           <div class="ff-map-holder" id="map-viz"></div>
+          <span class="ff-chart-date">2026 Q2</span>
         </figure>
         <figure class="ff-card ff-opportunities">
-          <div class="ff-card-head"><h3>Occupation Share Within Industry Heatmap</h3><span>2026 Q2</span></div>
+          <div class="ff-card-head"><h3>Occupation Share Within Industry Heatmap</h3></div>
           <div id="opportunities-viz"></div>
+          <span class="ff-chart-date">2026 Q2</span>
         </figure>
       </div>
     `;
