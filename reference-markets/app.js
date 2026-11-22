@@ -396,10 +396,11 @@
     const title = t("壮年与中年分层趋势","Mid-career employment trends");
     const colors = ["#A994C9","#8173AC","#D695BA","#BF4D76"];
     const sets = shares.map((values,i)=>lineSet(labels[i],values.map((value,j)=>
-      [years[j],value,`${labels[i]} · ${years[j]} · ${value.toFixed(2)}%`]),colors[i]));
+      [years[j],value,`${years[j]}\n${labels[i]} · ${value.toFixed(2)}%`]),colors[i]));
     const plot = viz("market-age-trends",(width,height)=>c.series(width,sets,{
       height:height || 230, x:[2010,2022], xTicks:years.filter(year=>year%2===0),
       xFormat:String, y:[18,60], yTicks:[20,30,40,50,60], yFormat:value=>value+"%", label:title,
+      hoverCross:false, action:"marketTrendPoint",
     }));
     const legend = labels.map((label,i)=>`<span><i style="background:${colors[i]}"></i>${label}</span>`).join("");
     return marketFigure("age-trends",title,"",plot,"",{key:`<div class="under35-legend trend-legend">${legend}</div>`});
@@ -1420,6 +1421,10 @@
 
   function action(e,el) {
     const key=el.dataset.action, value=el.dataset.value;
+    if(key==="marketTrendPoint") {
+      showTip(el, e.type==="click" && e.detail ? e : undefined);
+      return;
+    }
     if(key==="selectMarketAge") {
       const age = Number(value);
       selectedMarketAge = selectedMarketAge===age ? null : age;
@@ -1571,6 +1576,7 @@
     } else {
       const band=e.target.closest('[data-chart="industry-area"] [data-tip]');
       if(band) showTip(band,e);
+      else if(e.target.closest("#age-trends")) tooltip.hidden=true;
     }
   });
   main.addEventListener("keydown",e=>{
