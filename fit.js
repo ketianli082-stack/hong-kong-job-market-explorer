@@ -135,11 +135,12 @@
   function fitContext() {
     const matched = validYearRows().filter(matches).map(candidate)
       .sort((a, b) => (b.pay50 - a.pay50) || a.name.localeCompare(b.name));
+    const matchedIndustryIds = new Set(matched.map(row => row.id));
     if (!validYearRows().some(row => row.name === state.focus)) state.focus = null;
     const feature = validYearRows().map(candidate).find(row => row.name === state.focus) || matched[0] || null;
-    const broad = new Set(state.focus && feature ? [feature.id] : matched.map(row => row.id));
+    const broad = state.focus && feature ? new Set([feature.id]) : matchedIndustryIds;
     const chosen = fitData.demand.filter(row => broad.has(row.id));
-    return { chosen, rows: matched, matched, featured: feature,
+    return { chosen, rows: matched, matched, matchedIndustryIds, featured: feature,
       budget: feature ? feature.pay50 - expensesTotal() : 0 };
   }
 
@@ -514,7 +515,7 @@
       <div class="ff-topline">
         <div><span class="ff-eyebrow">FIND YOUR FIT · CAREER DECISION DASHBOARD</span>
           <h1>Which options fit you?</h1></div>
-        <div class="ff-match-total"><strong id="match-total">${context.matched.length}</strong><span>matching industries</span></div>
+        <div class="ff-match-total"><strong id="match-total">${context.matchedIndustryIds.size}</strong><span>matching industries</span></div>
       </div>
       <section class="ff-preferences" aria-label="Your Career Preferences">
         <header class="ff-preferences-head"><h2>Your Career Preferences</h2>
@@ -529,8 +530,10 @@
       <div class="ff-dashboard-charts">
         <figure class="ff-card ff-chart-scatter">
           <div class="ff-card-head"><h3>Industry income & working hours</h3></div>
-          <p class="ff-footnote"><span>Tableau industry groups · Bubble size: employment · Click to filter vacancy flows</span> · <span id="pay-hours-criteria"></span></p>
+          <p class="ff-footnote"><span>Coordinates: median of the available segment medians.</span> <span id="pay-hours-criteria"></span><br>
+            <span>Bubble size: second-quarter employment · Click to filter vacancy flows</span></p>
           <div id="pay-hours-viz" class="ff-scatter-viz"></div>
+          <p class="ff-footnote" id="pay-hours-missing" hidden></p>
           <span class="ff-chart-date" data-year-label>${state.payYear}</span>
         </figure>
         <figure class="ff-card ff-industry-history"><div class="ff-card-head"><h3>Industry employment trend</h3></div><div class="ff-map-holder" id="industry-history"></div><p class="ff-footnote">Employment index · 2016 Q1 = 100</p></figure>
@@ -579,8 +582,7 @@
     }).join("");
   }
 
-  function highlightExpansion(matched) {
-    const industryIds = new Set(matched.map(row => row.id));
+  function highlightExpansion(industryIds) {
     $$("#expansion-rows [data-expansion-industry]").forEach(row => {
       const highlighted = industryIds.has(row.dataset.expansionIndustry);
       row.classList.toggle("ff-expansion-match", highlighted);
@@ -590,67 +592,87 @@
 
   function updateDashboard() {
     const ctx = fitContext();
-    const { matched, chosen } = ctx;
+    const { matched, matchedIndustryIds, chosen } = ctx;
 
     updateSliderLimits();
-    $("#match-total").textContent = String(matched.length);
+    $("#match-total").textContent = String(matchedIndustryIds.size);
     $("#ff-adjustment").textContent = state.adjustment;
     document.querySelector(".ff-dashboard-charts")?.style.setProperty("--fit-list-min-height", Math.max(370, matched.length * 26 + 98) + "px");
-    drawPayHours();
-    highlightExpansion(matched);
+    drawPayHours(matchedIndustryIds);
+    highlightExpansion(matchedIndustryIds);
     document.querySelectorAll("[data-year-label]").forEach(element => element.textContent = state.payYear);
-    drawMap(selectedTableauIndustry ? fitData.demand : chosen);
+    drawMap(selectedScatterIndustry ? fitData.demand : chosen);
 
   }
 
-  const broadGroup = {
-    "Manufacturing":"Manufacturing","Construction":"Construction",
-    "Trade & wholesale":"Import/export & wholesale",
-    "Retail":"Retail & accommodation","Food & lodging":"Retail & accommodation",
-    "Transport & post":"Transportation & information","Information & communications":"Transportation & information",
-    "Finance & insurance":"Finance & professional","Real estate":"Finance & professional","Business services":"Finance & professional",
-    "Social & personal services":"Public & social services"
-  };
-  let selectedTableauIndustry = null;
+  let selectedScatterIndustry = null;
   let selectedVacancyIndustry = null;
-  function drawPayHours() {
+  function median(values) {
+    const sorted = values.slice().sort((a, b) => a - b);
+    return (sorted[Math.floor((sorted.length - 1) / 2)] + sorted[Math.floor(sorted.length / 2)]) / 2;
+  }
+
+  function drawPayHours(matchingIds) {
     const container=$("#pay-hours-viz");
-    const rows=window.tableauIncomeHours.filter(row=>+row[0]===state.payYear);
-    const matchingRows = new Set(rows.filter(([, , , pay, hours]) =>
-      pay >= state.targetPay && hours <= state.maxHours));
-    $("#pay-hours-criteria").textContent = matchingRows.size
-      ? "Bubbles meeting both limits are highlighted."
+    const yearRows = validYearRows();
+    const employmentByIndustry = new Map(fitData.vacancyHistory
+      .filter(row => row.period === state.payYear + "Q2")
+      .map(row => [row.id, row.employment]));
+    const missing = [];
+    const rows = fitData.demand.flatMap((industry, index) => {
+      const segments = yearRows.filter(row => row.id === industry.id);
+      const employment = employmentByIndustry.get(industry.id);
+      if (!segments.length || !Number.isFinite(employment)) {
+        missing.push(industry.name);
+        return [];
+      }
+      return [{
+        ...industry, employment, segments, color: palette[index % palette.length],
+        pay: median(segments.map(row => row.pay50)),
+        hours: median(segments.map(row => row.hours50)),
+      }];
+    });
+    const missingNotice = $("#pay-hours-missing");
+    missingNotice.hidden = missing.length === 0;
+    missingNotice.textContent = missing.length ? "Data unavailable · " + missing.join(" · ") : "";
+    $("#pay-hours-criteria").textContent = rows.some(row => matchingIds.has(row.id))
+      ? "Highlighted: at least one segment meets both limits."
       : "No industries meet both limits.";
+    if (!rows.length) {
+      container.innerHTML = '<p class="ff-empty">No data for this selection.</p>';
+      return;
+    }
     const w=Math.max(360,container.clientWidth),h=Math.max(220,container.clientHeight||320);
-    const minPay=Math.floor((Math.min(...rows.map(r=>r[3]))-700)/1000)*1000;
-    const maxPay=Math.ceil((Math.max(...rows.map(r=>r[3]))+700)/1000)*1000;
-    const minHours=Math.floor((Math.min(...rows.map(r=>r[4]))-3)/5)*5;
-    const maxHours=Math.ceil((Math.max(...rows.map(r=>r[4]))+3)/5)*5;
+    const minPay=Math.floor((Math.min(...rows.map(r=>r.pay))-700)/1000)*1000;
+    const maxPay=Math.ceil((Math.max(...rows.map(r=>r.pay))+700)/1000)*1000;
+    const minHours=Math.floor((Math.min(...rows.map(r=>r.hours))-3)/5)*5;
+    const maxHours=Math.ceil((Math.max(...rows.map(r=>r.hours))+3)/5)*5;
     const a=axes(w,h,{x:[minPay,maxPay],y:[minHours,maxHours],left:57,right:32,bottom:48,
       xTicks:ticks(minPay,maxPay,4),yTicks:ticks(minHours,maxHours,4),xFormat:v=>fmt(v/1000,1)+"k",yFormat:v=>fmt(v)});
     let content=a.grid;
     ticks(minPay,maxPay,4).forEach(v=>content+=line(a.x(v),a.top,a.x(v),a.bottom));
-    const colors=["#BE6482","#7F74A7","#F498B6","#C5BFBE","#9B93C9","#C6C1F0","#9C9290"];
-    const maxEmployment=Math.max(...rows.map(r=>r[5]));
-    rows.forEach((row,i)=>{
-      const [year,industry,name,pay,hours,employment]=row,cx=a.x(pay),cy=a.y(hours);
+    const maxEmployment=Math.max(1,...rows.map(r=>r.employment));
+    rows.forEach(({id,name,pay,hours,employment,segments,color})=>{
+      const cx=a.x(pay),cy=a.y(hours);
       const r=5+Math.sqrt(employment/maxEmployment)*9;
-      const tip=name+" · "+year+" · Median pay "+money(pay)+" · Weekly hours "+fmt(hours,1)+" · Employed "+fmt(employment,1)+" thousand";
-      const meetsCriteria = matchingRows.has(row);
-      const selected = selectedTableauIndustry === industry;
-      const opacity = meetsCriteria ? (selectedTableauIndustry && !selected ? .65 : .95) : .2;
-      content+=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="${colors[i]}" fill-opacity="${opacity}" stroke="${selected?"#51436E":"#fff"}" stroke-width="2" data-action="tableauIndustry" data-value="${esc(industry)}" data-tip="${esc(tip)}" tabindex="0" role="button" aria-label="${esc(tip)}" style="cursor:pointer"/>`;
-      content+=`<text x="0" y="0" class="income-label" pointer-events="none">${esc(name)}</text>`;
+      const tip = [name, String(state.payYear), "Reference monthly pay: " + money(pay),
+        "Reference weekly hours: " + number(hours), "Q2 employment: " + number(employment),
+        "Source segments: " + segments.map(row => row.name).join(" / ")].join(" · ");
+      const meetsCriteria = matchingIds.has(id);
+      const selected = selectedScatterIndustry === id;
+      const opacity = meetsCriteria ? (selectedScatterIndustry && !selected ? .65 : .95) : .2;
+      content+=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="${color}" fill-opacity="${opacity}" stroke="${selected?"#51436E":"#fff"}" stroke-width="2" data-action="scatterIndustry" data-value="${esc(id)}" data-tip="${esc(tip)}" tabindex="0" role="button" aria-pressed="${selected}" aria-label="${esc(tip)}" style="cursor:pointer"/>`;
+      content+=`<text x="0" y="0" class="income-label" pointer-events="all" style="cursor:pointer" data-action="scatterIndustry" data-value="${esc(id)}" data-tip="${esc(tip)}">${esc(name)}</text>`;
     });
-    content+=text((a.left+a.right)/2,h-6,"Monthly Median Earnings (HK$)");
-    content+=`<text transform="translate(14,${(a.top+a.bottom)/2}) rotate(-90)" text-anchor="middle">Median Weekly Hours</text>`;
-    container.innerHTML=svg(w,h,"Tableau industry income and weekly hours",content);
+    content+=text((a.left+a.right)/2,h-6,"Reference monthly pay (HK$)");
+    content+=`<text transform="translate(14,${(a.top+a.bottom)/2}) rotate(-90)" text-anchor="middle">Reference weekly hours</text>`;
+    container.innerHTML=svg(w,h,"Industry income & working hours",content);
     const plot=container.querySelector("svg"), labels=plot.querySelectorAll(".income-label");
     labelScatter(plot,Array.from(plot.querySelectorAll("circle"),(dot,i)=>({x:+dot.getAttribute("cx"),y:+dot.getAttribute("cy"),r:+dot.getAttribute("r"),label:labels[i]})),{left:a.left+2,right:w-3,top:2,bottom:a.bottom-2});
   }
 
   function vacancyFlow(chosen, width, height) {
-    const ids = new Set(chosen.filter(row=>!selectedTableauIndustry||broadGroup[row.id]===selectedTableauIndustry).map(row => row.id));
+    const ids = new Set(chosen.map(row => row.id));
     const rows = fitData.occupations.filter(row => ids.has(row.id) && row.count > 0);
     if (!rows.length) return '<p class="ff-empty">No matching vacancies.</p>';
     const sum = list => list.reduce((total,row)=>total+row.count,0);
@@ -698,7 +720,7 @@
   function drawMap(chosen) {
     const container = $("#map-viz");
     if (!container) return;
-    const industries=chosen.filter(row=>!selectedTableauIndustry||broadGroup[row.id]===selectedTableauIndustry);
+    const industries=chosen.filter(row=>!selectedScatterIndustry||row.id===selectedScatterIndustry);
     const focused=selectedVacancyIndustry?industries.filter(row=>row.id===selectedVacancyIndustry):industries;
     container.innerHTML=vacancyFlow(focused, container.clientWidth, container.clientHeight);
     const map=$("#opportunities-viz"),history=$("#industry-history");
@@ -763,15 +785,25 @@
       if (event.target.id !== "expansion-year") return;
       state.expansionYear = Number(event.target.value);
       drawExpansion();
-      highlightExpansion(validYearRows().filter(matches));
+      highlightExpansion(fitContext().matchedIndustryIds);
     });
     app.addEventListener("click", event => {
       const target = event.target.closest("[data-action]");
       if (!target) return;
       const action = target.dataset.action;
-      if (action === "tableauIndustry") { selectedVacancyIndustry=null; selectedTableauIndustry = selectedTableauIndustry===target.dataset.value?null:target.dataset.value; updateDashboard(); return; }
+      if (action === "scatterIndustry") {
+        const industry = target.dataset.value;
+        selectedVacancyIndustry = null;
+        selectedScatterIndustry = selectedScatterIndustry === industry ? null : industry;
+        updateDashboard();
+        if (event.detail === 0) {
+          $$('#pay-hours-viz circle[data-action="scatterIndustry"]')
+            .find(dot => dot.dataset.value === industry)?.focus({ preventScroll: true });
+        }
+        return;
+      }
       if (action === "reset") {
-        selectedTableauIndustry=null; selectedVacancyIndustry=null;
+        selectedScatterIndustry=null; selectedVacancyIndustry=null;
         Object.assign(state, defaultPreferences, {
           focus: null, rent: 10000, living: 6500, deduct: 2000, adjustment: "", quarterIndex: fitData.quarters.length - 1 });
         render(); return;
@@ -788,7 +820,7 @@
       if (action === "bubble") {
         const match = fitContext().matched.find(row=>row.id===target.dataset.value);
         if (match) state.focus=match.name;
-        selectedTableauIndustry=null;
+        selectedScatterIndustry=null;
         selectedVacancyIndustry=target.dataset.value;
         updateDashboard(); return;
       }
@@ -831,7 +863,7 @@
         }
       }
 
-      const target = event.target.closest('[data-action="bubble"]');
+      const target = event.target.closest('[data-action="bubble"],[data-action="scatterIndustry"]');
       if (target && (event.key === "Enter" || event.key === " ")) {
         event.preventDefault(); target.dispatchEvent(new MouseEvent("click", { bubbles: true }));
       }
