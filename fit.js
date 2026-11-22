@@ -30,17 +30,15 @@
     "Plant and machine operators and assemblers",
     "Elementary occupations",
   ];
+  const defaultPreferences = { targetPay: 15000, maxHours: 54, payYear: 2025 };
   const state = {
+    ...defaultPreferences,
     selected: [],
     focus: null,
     adjustment: "",
-    vacancyMode: "share",
     quarterIndex: 41,
-    payYear: 2025,
     startYear: 2016,
     expansionYear: 2016,
-    targetPay: 25000,
-    maxHours: 42,
     offer: 25000,
     rent: 10000,
     living: 6500,
@@ -263,18 +261,15 @@
   }
 
   function heatTable(occupations, industries) {
-    const isCount = state.vacancyMode === "count";
-    const max = Math.max(1, ...fitData.occupations.map(row => row.count ?? 0));
-    return `<div class="ff-table-scroll" tabindex="0" aria-label="Vacancy heatmap by occupation and industry, scrolls horizontally">
+    return `<div class="ff-table-scroll" tabindex="0" aria-label="Occupation shares within each industry, scrolls horizontally">
       <table class="ff-heat"><thead><tr><th scope="col">Occupation</th>${industries.map(row =>
         `<th scope="col">${esc(row.name)}</th>`).join("")}</tr></thead><tbody>${occupations.map(occupation => {
           const values = industries.map(industry => {
             const row = fitData.occupations.find(item => item.id === industry.id && item.name === occupation);
-            if (!row) return `<td>—</td>`;
-            const value = isCount ? row.count : row.share;
-            if (!Number.isFinite(value)) return `<td>—</td>`;
-            const opacity = .12 + .66 * Math.sqrt(value / (isCount ? max : 1));
-            const text = isCount ? number(value) : percent(value * 100);
+            const share = row?.share;
+            if (!Number.isFinite(share)) return `<td>—</td>`;
+            const opacity = .12 + .66 * Math.sqrt(share);
+            const text = percent(share * 100);
             const tip = `${occupation} · ${industry.name} · ${text}`;
             return `<td><button type="button" data-action="vacancyIndustry" data-value="${esc(industry.id)}" data-tip="${esc(tip)}" aria-label="${esc(tip)}" aria-pressed="${selectedVacancyIndustry === industry.id}" style="background:color-mix(in srgb,#783b74 ${opacity*100}%,#f8d7ed);color:${opacity > .62 ? "white" : "#282D33"}">${text}</button></td>`;
           }).join("");
@@ -532,28 +527,28 @@
         <span class="ff-sr-only" id="ff-adjustment" role="status" aria-live="polite"></span>
       </section>
       <div class="ff-dashboard-charts">
-        <figure class="ff-card ff-industry-history"><div class="ff-card-head"><h3>Industry employment trend</h3></div><div class="ff-map-holder" id="industry-history"></div><p class="ff-footnote">Employment index · 2016 Q1 = 100</p></figure>
-        <figure class="ff-card ff-chart-hiring">
-          <div class="ff-card-head"><h3>Industry × Occupation Vacancies</h3><span>2026 Q2</span></div>
-          <div class="ff-map-holder" id="map-viz"></div>
-        </figure>
         <figure class="ff-card ff-chart-scatter">
           <div class="ff-card-head"><h3>Industry income & working hours</h3><span data-year-label>${state.payYear}</span></div>
-          <p class="ff-footnote">Tableau industry groups · Bubble size: employment · Click to filter vacancy flows</p>
+          <p class="ff-footnote"><span>Tableau industry groups · Bubble size: employment · Click to filter vacancy flows</span> · <span id="pay-hours-criteria"></span></p>
           <div id="pay-hours-viz" class="ff-scatter-viz"></div>
         </figure>
-        <figure class="ff-card ff-opportunities">
-          <div class="ff-card-head"><h3>Vacancy heatmap</h3><select id="vacancy-display" aria-label="Vacancy display"><option value="share">Industry share</option><option value="count">Vacancy count</option></select><span>2026 Q2</span></div>
-          <div id="opportunities-viz"></div>
-        </figure>
+        <figure class="ff-card ff-industry-history"><div class="ff-card-head"><h3>Industry employment trend</h3></div><div class="ff-map-holder" id="industry-history"></div><p class="ff-footnote">Employment index · 2016 Q1 = 100</p></figure>
         <figure class="ff-card ff-expansion">
           <div class="ff-card-head"><h3>Where is employment growing?</h3><label>Start year <select id="expansion-year">${[...new Set(fitData.quarters.map(period=>period.slice(0,4)))].map(year=>`<option>${year}</option>`).join("")}</select></label></div>
           <div class="ff-expansion-rows" id="expansion-rows"></div>
-          <p class="ff-footnote">Employment change from the first quarter of the selected year</p>
+          <p class="ff-footnote"><span>Employment change from the first quarter of the selected year</span><br>
+            <span>Highlighted industries have at least one segment whose median pay and hours meet both limits in the selected pay year.</span></p>
+        </figure>
+        <figure class="ff-card ff-chart-hiring">
+          <div class="ff-card-head"><h3>Industry × Occupation Vacancy Counts</h3><span>2026 Q2</span></div>
+          <div class="ff-map-holder" id="map-viz"></div>
+        </figure>
+        <figure class="ff-card ff-opportunities">
+          <div class="ff-card-head"><h3>Occupation Share Within Industry Heatmap</h3><span>2026 Q2</span></div>
+          <div id="opportunities-viz"></div>
         </figure>
       </div>
     `;
-    $("#vacancy-display").value = state.vacancyMode;
     $("#expansion-year").value = state.expansionYear;
     drawExpansion();
     updateDashboard();
@@ -565,19 +560,29 @@
       const values = points.map(row => row.value).filter(Number.isFinite);
       const base = values[0];
       if (!base) return null;
-      return { name: industry.name, values, change: (values.at(-1) / base - 1) * 100 };
+      return { id: industry.id, name: industry.name, values, change: (values.at(-1) / base - 1) * 100 };
     }).filter(Boolean).sort((a,b) => b.change - a.change);
     const max = Math.max(1, ...rows.map(row => Math.abs(row.change)));
-    $("#expansion-rows").innerHTML = rows.map(({name,values,change}) => {
+    $("#expansion-rows").innerHTML = rows.map(({id,name,values,change}) => {
       const min = Math.min(...values), range = Math.max(...values) - min || 1;
       const points = values.map((value,i) => `${i * 62 / Math.max(1,values.length-1)},${12 - 10*(value-min)/range}`).join(" ");
       const direction = change >= 0 ? "gain" : "loss";
       const label = change > 0 ? "+" + percent(change) : percent(change);
-      return `<div class="ff-expansion-row"><span title="${esc(name)}">${esc(name)}</span>
+      return `<div class="ff-expansion-row" data-expansion-industry="${esc(id)}">
+        <span title="${esc(name)}">${esc(name)}<span class="ff-sr-only" hidden> · Meets pay and hours criteria</span></span>
         <svg viewBox="0 0 62 14" aria-hidden="true"><polyline points="${points}" fill="none" stroke="#8376aa" stroke-width="1.4"/></svg>
         <span class="ff-expansion-bar"><i class="${direction}" style="width:${Math.abs(change)/max*50}%"></i></span>
         <strong class="${direction}">${label}</strong></div>`;
     }).join("");
+  }
+
+  function highlightExpansion(matched) {
+    const industryIds = new Set(matched.map(row => row.id));
+    $$("#expansion-rows [data-expansion-industry]").forEach(row => {
+      const highlighted = industryIds.has(row.dataset.expansionIndustry);
+      row.classList.toggle("ff-expansion-match", highlighted);
+      row.querySelector(".ff-sr-only").hidden = !highlighted;
+    });
   }
 
   function updateDashboard() {
@@ -589,6 +594,7 @@
     $("#ff-adjustment").textContent = state.adjustment;
     document.querySelector(".ff-dashboard-charts")?.style.setProperty("--fit-list-min-height", Math.max(370, matched.length * 26 + 98) + "px");
     drawPayHours();
+    highlightExpansion(matched);
     document.querySelectorAll("[data-year-label]").forEach(element => element.textContent = state.payYear);
     drawMap(selectedTableauIndustry ? fitData.demand : chosen);
 
@@ -607,6 +613,11 @@
   function drawPayHours() {
     const container=$("#pay-hours-viz");
     const rows=window.tableauIncomeHours.filter(row=>+row[0]===state.payYear);
+    const matchingRows = new Set(rows.filter(([, , , pay, hours]) =>
+      pay >= state.targetPay && hours <= state.maxHours));
+    $("#pay-hours-criteria").textContent = matchingRows.size
+      ? "Bubbles meeting both limits are highlighted."
+      : "No industries meet both limits.";
     const w=Math.max(360,container.clientWidth),h=Math.max(220,container.clientHeight||320);
     const minPay=Math.floor((Math.min(...rows.map(r=>r[3]))-700)/1000)*1000;
     const maxPay=Math.ceil((Math.max(...rows.map(r=>r[3]))+700)/1000)*1000;
@@ -622,7 +633,10 @@
       const [year,industry,name,pay,hours,employment]=row,cx=a.x(pay),cy=a.y(hours);
       const r=5+Math.sqrt(employment/maxEmployment)*9;
       const tip=name+" · "+year+" · Median pay "+money(pay)+" · Weekly hours "+fmt(hours,1)+" · Employed "+fmt(employment,1)+" thousand";
-      content+=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="${colors[i]}" opacity="${selectedTableauIndustry&&selectedTableauIndustry!==industry?.28:.95}" stroke="${selectedTableauIndustry===industry?"#51436E":"#fff"}" stroke-width="2" data-action="tableauIndustry" data-value="${esc(industry)}" data-tip="${esc(tip)}" tabindex="0" role="button" aria-label="${esc(tip)}" style="cursor:pointer"/>`;
+      const meetsCriteria = matchingRows.has(row);
+      const selected = selectedTableauIndustry === industry;
+      const opacity = meetsCriteria ? (selectedTableauIndustry && !selected ? .65 : .95) : .2;
+      content+=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="${colors[i]}" fill-opacity="${opacity}" stroke="${selected?"#51436E":"#fff"}" stroke-width="2" data-action="tableauIndustry" data-value="${esc(industry)}" data-tip="${esc(tip)}" tabindex="0" role="button" aria-label="${esc(tip)}" style="cursor:pointer"/>`;
       content+=`<text x="0" y="0" class="income-label" pointer-events="none">${esc(name)}</text>`;
     });
     content+=text((a.left+a.right)/2,h-6,"Monthly Median Earnings (HK$)");
@@ -743,14 +757,10 @@
   function bindEvents() {
     const app = $("#fit-app");
     app.addEventListener("change", event => {
-      if (event.target.id === "expansion-year") {
-        state.expansionYear = Number(event.target.value);
-        drawExpansion();
-        return;
-      }
-      if (event.target.id !== "vacancy-display") return;
-      state.vacancyMode = event.target.value;
-      updateDashboard();
+      if (event.target.id !== "expansion-year") return;
+      state.expansionYear = Number(event.target.value);
+      drawExpansion();
+      highlightExpansion(validYearRows().filter(matches));
     });
     app.addEventListener("click", event => {
       const target = event.target.closest("[data-action]");
@@ -759,7 +769,7 @@
       if (action === "tableauIndustry") { selectedVacancyIndustry=null; selectedTableauIndustry = selectedTableauIndustry===target.dataset.value?null:target.dataset.value; updateDashboard(); return; }
       if (action === "reset") {
         selectedTableauIndustry=null; selectedVacancyIndustry=null;
-        Object.assign(state, { targetPay: 25000, maxHours: 42, payYear: 2025,
+        Object.assign(state, defaultPreferences, {
           focus: null, rent: 10000, living: 6500, deduct: 2000, adjustment: "", quarterIndex: fitData.quarters.length - 1 });
         render(); return;
       }

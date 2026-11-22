@@ -1007,30 +1007,35 @@ input[type="range"]:focus-visible { outline:2px solid #8074A8; outline-offset:5p
 .fit-page .ff-chart-hiring .ff-map-holder svg text { font-size: 10px; }
 .ff-vacancy-flow:hover { opacity: .8; }
 
-.fit-page .ff-dashboard-charts { grid-template-columns: minmax(0,1.5fr) minmax(0,1fr); }
-.fit-page .ff-chart-scatter { grid-column: 1; grid-row: 1; min-height: 380px; display: flex; flex-direction: column; }
-.fit-page .ff-chart-hiring { grid-column: 2; grid-row: 1; }
 .ff-scatter-viz { flex: 1; min-height: 310px; }
-@media(max-width:800px) {
- .fit-page .ff-dashboard-charts { grid-template-columns: minmax(0,1fr); grid-template-rows: auto; }
- .fit-page .ff-chart-hiring,.fit-page .ff-chart-scatter { grid-column:1; grid-row:auto; }
+.fit-page .ff-dashboard-charts {
+  grid-template-columns:minmax(0,1fr); grid-template-rows:auto;
+  max-width:1600px; width:100%; margin-inline:auto;
 }
-
-.fit-page .ff-dashboard-charts { grid-template-columns: minmax(0,1fr) minmax(0,1fr); max-width: 1600px; width:100%; margin-inline:auto; }
+.fit-page .ff-dashboard-charts > .ff-card { grid-column:auto; }
 .fit-page .ff-chart-scatter,.fit-page .ff-chart-hiring { min-height:480px; }
 .fit-page #pay-hours-viz svg text { font-size:10px; }
-@media(max-width:800px) { .fit-page .ff-dashboard-charts { grid-template-columns:minmax(0,1fr); } }
 
-@media (min-width: 1000px) and (min-height: 650px) {
- .fit-page { height:100dvh; overflow:auto; }
- .fit-page main { height:calc(100dvh - 44px); }
- .fit-page .ff-shell { height:100%; min-height:0; padding:10px 16px; }
- .fit-page .ff-dashboard-charts { flex:1; min-height:0; max-width:none; grid-template-columns:minmax(0,.9fr) minmax(0,1.3fr); grid-template-rows:minmax(0,1fr) 155px; gap:10px; }
+@media (max-width:999px), (max-height:799px) {
+ .fit-page, .fit-page main, .fit-page .ff-shell { height:auto; overflow:visible; }
+ .fit-page .ff-dashboard-charts { flex:none; }
+}
+
+@media (min-width:1000px) {
+ .fit-page .ff-dashboard-charts { grid-template-columns:repeat(6,minmax(0,1fr)); grid-template-rows:repeat(2,minmax(300px,1fr)); }
+ .fit-page .ff-dashboard-charts > .ff-card { grid-column:span 2; }
+ .fit-page .ff-dashboard-charts > :is(.ff-chart-hiring,.ff-opportunities) { grid-column:span 3; }
  .fit-page .ff-chart-scatter,.fit-page .ff-chart-hiring { min-height:0!important; padding:10px 12px; }
- .fit-page .ff-chart-budget { min-height:0!important; }
  .fit-page .ff-scatter-viz { min-height:0; height:0; flex:1; }
  .fit-page .ff-chart-hiring .ff-map-holder { min-height:0; height:0; overflow:hidden; }
  .fit-page .ff-chart-hiring .ff-map-holder svg { min-height:0; height:100%; width:100%; }
+}
+
+@media (min-width:1000px) and (min-height:800px) {
+ .fit-page { height:100dvh; overflow:auto; }
+ .fit-page main { height:calc(100dvh - 44px); overflow:visible; }
+ .fit-page .ff-shell { height:100%; min-height:0; padding:10px 16px; overflow:visible; }
+ .fit-page .ff-dashboard-charts { flex:1; min-height:0; max-width:none; gap:10px; }
  .fit-page .ff-dashboard-title { margin-bottom:6px; }
  .fit-page .ff-preferences { padding:8px 12px; }
 }
@@ -1070,13 +1075,6 @@ input[type="range"]:focus-visible { outline:2px solid #8074A8; outline-offset:5p
  .explore-page #chapter-equity .dashboard-grid > figure,.explore-page #chapter-risk .risk-grid > figure:nth-of-type(n) {grid-column:span 2;}
  .explore-page #chapter-equity .dashboard-grid > figure:nth-of-type(-n+2),.explore-page #chapter-risk .risk-grid > figure:nth-of-type(-n+2){grid-column:span 3;}
 }
-@media(min-width:1000px) and (min-height:650px){
- .fit-page .ff-dashboard-charts {grid-template-columns:repeat(6,minmax(0,1fr));grid-template-rows:minmax(0,1.25fr) minmax(0,1fr);}
- .fit-page .ff-dashboard-charts > .ff-chart-scatter,.fit-page .ff-dashboard-charts > .ff-chart-hiring {grid-column:span 3;grid-row:1;}
- .fit-page .ff-dashboard-charts > :is(.ff-opportunities,.ff-industry-history,.ff-chart-budget){grid-column:span 2;grid-row:2;min-width:0;min-height:0;display:flex;flex-direction:column;}
- .fit-page .ff-chart-budget .ff-budget-row {grid-template-columns:1fr;grid-template-rows:auto minmax(0,1fr);}
- .fit-page .ff-chart-budget .ff-budget-summary {flex-direction:row;gap:4px;flex-wrap:wrap;padding:3px;}
-}
 
 #chapter-equity .equity-year { align-self:flex-end; flex:none; color:var(--purple); font-size:10px; font-weight:400; line-height:10px; }
 .pay-gap-legend { width:112px; padding-bottom:12px; align-self:flex-end; color:var(--muted); font-size:10px; line-height:12px; }
@@ -1107,17 +1105,14 @@ input[type="range"]:focus-visible { outline:2px solid #8074A8; outline-offset:5p
 .fit-page #opportunities-viz .ff-heat {min-width:0; border-spacing:1px;}
 .fit-page #opportunities-viz .ff-heat th:first-child {width:105px;}
 .fit-page #opportunities-viz .ff-heat td button {min-width:0; padding:3px 2px; border-radius:2px;}
-@media(min-width:1000px) and (min-height:650px) {
- .fit-page .ff-dashboard-charts {grid-template-rows:repeat(2,minmax(0,1fr));}
- .fit-page .ff-dashboard-charts > .ff-industry-history {grid-column:span 3;grid-row:1;}
- .fit-page .ff-dashboard-charts > .ff-chart-scatter,
- .fit-page .ff-dashboard-charts > .ff-opportunities {grid-column:span 3;grid-row:2;}
-}
 
 .fit-page .ff-expansion {display:flex; flex-direction:column; min-width:0;}
 .ff-expansion .ff-card-head label {display:flex; align-items:center; gap:4px; font-size:10px; white-space:nowrap;}
 .ff-expansion-rows {flex:1; min-height:0; overflow:auto; display:grid; align-content:space-evenly;}
 .ff-expansion-row {display:grid; grid-template-columns:minmax(65px,1.5fr) minmax(30px,.65fr) minmax(35px,1fr) 44px; gap:5px; align-items:center; min-height:15px; font-size:10px;}
+.ff-expansion-row {padding-inline:5px; border-radius:4px;}
+.ff-expansion-match {background:#f0ebf7; box-shadow:inset 2px 0 #8174a8;}
+.ff-expansion-match > span:first-child {font-weight:650;}
 .ff-expansion-row > span:first-child {overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
 .ff-expansion-row svg {width:100%; height:13px;}
 .ff-expansion-row strong {text-align:right;}
@@ -1127,11 +1122,6 @@ input[type="range"]:focus-visible { outline:2px solid #8074A8; outline-offset:5p
 .ff-expansion-bar .loss {right:50%; background:linear-gradient(to left,#edbbc9,#a44f71);}
 .ff-expansion-row strong.gain {color:#356c56;}
 .ff-expansion-row strong.loss {color:#a04466;}
-@media(min-width:1000px) and (min-height:650px) {
- .fit-page .ff-dashboard-charts > .ff-expansion,
- .fit-page .ff-dashboard-charts > .ff-chart-scatter,
- .fit-page .ff-dashboard-charts > .ff-opportunities {grid-column:span 2;grid-row:2;}
-}
 
 .fit-page #opportunities-viz .ff-heat th {
   white-space:normal;
