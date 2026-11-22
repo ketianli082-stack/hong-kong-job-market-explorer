@@ -311,8 +311,10 @@
       "Mainland figures after 2024 are projections. Hong Kong figures use employment counts for each period. Hover or focus a point to see all three periods. Select it to change the age band in the industry chart.")}</p>`;
     return marketFigure("ages",t("就业人口年龄结构","Employed population by age"),
       periodLabel,agePlot,ageCaption,
-      {key:filterLegend("marketRegion",regionEntries,state.marketRegion,"ages"),
-       control:select("workforcePeriod",t("时期","Period"),Object.keys(workforcePeriods()),key=>workforcePeriods()[key])});
+      {control:`<div class="age-period-tools">
+        ${select("workforcePeriod",t("时期","Period"),Object.keys(workforcePeriods()),key=>workforcePeriods()[key])}
+        ${filterLegend("marketRegion",regionEntries,state.marketRegion,"ages")}
+      </div>`});
   }
 
   function markets() {

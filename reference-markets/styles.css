@@ -926,3 +926,6 @@ circle.market-age-picked { stroke:#fff; stroke-width:1.4; r:4.8px; }
 #age-trends .trend-legend {justify-content:flex-end; margin-inline-start:auto;}
 
 #content #hk-snapshot .market-heading {align-items:flex-end;}
+
+#ages .age-period-tools {display:flex; flex-direction:column; align-items:flex-end; gap:4px; margin-inline-start:auto;}
+#ages .age-period-tools .field, #ages .age-period-tools .legend {margin-top:0;}
