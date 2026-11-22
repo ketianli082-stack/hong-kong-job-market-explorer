@@ -1132,3 +1132,8 @@ input[type="range"]:focus-visible { outline:2px solid #8074A8; outline-offset:5p
  .fit-page .ff-dashboard-charts > .ff-chart-scatter,
  .fit-page .ff-dashboard-charts > .ff-opportunities {grid-column:span 2;grid-row:2;}
 }
+
+.fit-page #opportunities-viz .ff-heat th {
+  white-space:normal;
+  overflow-wrap:anywhere;
+}
