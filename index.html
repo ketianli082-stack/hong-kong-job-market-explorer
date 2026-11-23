@@ -6,12 +6,18 @@
   <meta name="description" content="Interactive exploration of Hong Kong employment, pay and labour-market risk.">
   <title>Hong Kong Job Market Explorer</title>
   <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400..800&amp;family=Manrope:wght@600..800&amp;display=swap">
-  <link rel="stylesheet" href="styles.css?v=43">
+  <link rel="stylesheet" href="styles.css?v=gap-legend-zero">
 </head>
 <body class="explore-page is-landing">
+  <script>
+    // Apply deep links before the landing hero can paint.
+    if (["#markets", "#equity", "#risk", "#structure"].includes(location.hash)) {
+      document.body.classList.remove("is-landing");
+    }
+  </script>
   <header class="topbar">
     <a class="brand" href="index.html"><span class="brand-mark" aria-hidden="true"></span><span>Hong Kong Job Market Explorer</span></a>
-    <nav aria-label="Primary navigation"><a class="active" href="index.html#structure">Explore</a><a href="fit.html">Find Your Fit</a></nav><div class="language-toggle" role="group" aria-label="Language / 语言"><button type="button" data-lang="en" aria-pressed="true">EN</button><button type="button" data-lang="zh" aria-pressed="false">中文</button></div>
+    <nav aria-label="Primary navigation"><a href="index.html#markets" data-section="review">Review</a><a href="index.html#risk" data-section="explore">Explore</a><a href="fit.html">Find Your Fit</a></nav><div class="language-toggle" role="group" aria-label="Language / 语言"><button type="button" data-lang="en" aria-pressed="true">EN</button><button type="button" data-lang="zh" aria-pressed="false">中文</button></div>
   </header>
   <main>
 
@@ -20,7 +26,7 @@
         <div class="landing-kicker">HONG KONG JOB MARKET · DATA STORY</div>
         <h1>Explore the market.<br><em>Shape your future.</em></h1>
         <p>From employment structure to job security and pay — understand the evidence behind career decisions in Hong Kong.</p>
-        <a class="landing-start" id="start-exploring" href="#structure">Start Exploring <span aria-hidden="true">→</span></a>
+        <a class="landing-start" id="start-exploring" href="#markets">Start Exploring <span aria-hidden="true">→</span></a>
       </div>
       <div class="landing-image-wrap">
         <img class="landing-photo" src="assets/harbour.webp" alt="Illustrated sunset skyline across Hong Kong's Victoria Harbour" fetchpriority="high">
@@ -29,52 +35,81 @@
     </section>
     <section class="story-workspace" id="story" aria-label="Hong Kong job market story">
       <div id="chapter-navigation" class="chapter-tabs" role="tablist" aria-label="Story chapters">
-        <button class="active" role="tab" aria-selected="true" id="tab-structure" aria-controls="chapter-structure" data-chapter="structure"><span>01</span><strong>Employment Structure</strong></button>
+        <button role="tab" aria-selected="false" id="tab-markets" aria-controls="chapter-markets" data-chapter="markets"><span>00</span><strong>Two Markets</strong></button>
+        <button role="tab" aria-selected="false" id="tab-equity" aria-controls="chapter-equity" data-chapter="equity"><span>01</span><strong>Gender &amp; Pay</strong></button>
         <button role="tab" aria-selected="false" id="tab-risk" aria-controls="chapter-risk" data-chapter="risk"><span>02</span><strong>Risk &amp; Resilience</strong></button>
-        <button role="tab" aria-selected="false" id="tab-equity" aria-controls="chapter-equity" data-chapter="equity"><span>03</span><strong>Gender &amp; Pay</strong></button>
+        <button class="active" role="tab" aria-selected="true" id="tab-structure" aria-controls="chapter-structure" data-chapter="structure"><span>03</span><strong>Employment Structure</strong></button>
       </div>
-      <section class="chapter-panel active" id="chapter-structure" data-panel="structure" role="tabpanel" aria-labelledby="tab-structure">
-        <header class="chapter-heading"><span>01 · EMPLOYMENT STRUCTURE</span><h2>Where Hong Kong Works</h2><p>Employment scale, industry composition and the occupations behind the market.</p></header>
-        <div class="dashboard-grid employment-overview">
-          <figure class="viz-card"><div class="viz-heading"><div><h3>Total employment</h3></div><span>2008–2025</span></div><div id="total-employment-chart" class="chart h-270"></div></figure>
+      <section class="chapter-panel" id="chapter-markets" data-panel="markets" role="tabpanel" aria-labelledby="tab-markets" hidden>
+        <iframe id="markets-reference" title="Mainland China and Hong Kong employment comparison" src="reference-markets/index.html?v=hk-age-point-tip&theme=light&lang=zh-Hans#markets" loading="lazy"></iframe>
+      </section>
+      <section class="chapter-panel" id="chapter-structure" data-panel="structure" role="tabpanel" aria-labelledby="tab-structure" hidden>
+        <header class="chapter-heading"><span>03 · EMPLOYMENT STRUCTURE</span><h2>Where Hong Kong Works</h2><p>Employment scale, industry composition and the occupations behind the market.</p><label class="year-slider">Year <input id="composition-year" type="range" min="2016" max="2025" step="1" value="2025"><output for="composition-year">2025</output></label></header>
+        <div class="dashboard-grid two-columns">
+          <figure class="viz-card"><div class="viz-heading"><div><h3>Total employment</h3></div></div><div id="total-employment-chart" class="chart h-270"></div></figure>
           <figure class="viz-card primary-viz"><div class="viz-heading"><div><h3>Employment share by industry</h3></div><div class="industry-share-controls"><div id="industry-share-legend" class="industry-share-legend" role="group" aria-label="Industries"></div><button id="industry-share-reset" class="chart-action" type="button" hidden>All industries</button></div></div><div id="industry-share-chart" class="chart h-270"></div></figure>
+          <figure class="viz-card"><div class="viz-heading"><div><h3>Employment status</h3></div></div><div id="status-chart" class="chart h-260"></div></figure>
+          <figure class="viz-card"><div class="viz-heading"><div><h3>Occupation mix</h3></div></div><div id="occupation-chart" class="chart h-260"></div></figure>
         </div>
-        <section class="composition-section" aria-labelledby="composition-title">
-          <div class="subsection-heading"><div><h3 id="composition-title">Employment status and occupation mix</h3></div><label class="year-slider">Year <input id="composition-year" type="range" min="2016" max="2025" step="1" value="2025"><output for="composition-year">2025</output></label></div>
-          <div class="composition-grid">
-            <figure class="viz-card"><div class="viz-heading"><div><h3>Employment status</h3></div></div><div id="status-chart" class="chart h-260"></div></figure>
-            <figure class="viz-card"><div class="viz-heading"><div><h3>Occupation mix</h3></div></div><div id="occupation-chart" class="chart h-260"></div></figure>
-          </div>
-        </section>
+        <div class="decision-strip compact-decision"><p>Turn market evidence into a personal shortlist.</p><a href="fit.html">Find Your Fit →</a></div>
       </section>
       <section class="chapter-panel" id="chapter-risk" data-panel="risk" role="tabpanel" aria-labelledby="tab-risk" hidden>
         <header class="chapter-heading"><span>02 · RISK &amp; RESILIENCE</span><h2>How Secure Is Employment?</h2><p>Long-term unemployment, crisis recovery and group-level exposure show where employment is most vulnerable.</p></header>
         <div class="dashboard-grid risk-grid">
           <input type="hidden" id="risk-age" value="15 - 19">
           <figure class="viz-card primary-viz annual-unemployment-card"><div class="viz-heading"><div><h3>Annual unemployment rate</h3></div><label class="year-slider">Year <input id="risk-year" type="range" min="1985" max="2025" step="1" value="2025"><output for="risk-year">2025</output></label></div><div id="unemployment-chart" class="chart h-250"></div></figure>
+          <figure class="viz-card recovery-card">
+            <div class="viz-heading recovery-heading">
+              <h3>Recovery after crises</h3>
+              <ul class="recovery-legend" aria-label="Crises"><li>SARS</li><li>GFC</li><li>COVID-19</li></ul>
+            </div>
+            <div class="chart" id="crisis-recovery"></div>
+            <small>0 pp means back to the pre-crisis quarter’s rate.</small>
+          </figure>
           <figure class="viz-card"><div class="viz-heading"><div><h3>Unemployment by education</h3></div></div><ul id="education-legend" class="education-legend" aria-label="Education groups"></ul><div id="education-chart" class="chart education-chart-compact"></div></figure>
-          <figure class="viz-card"><div class="viz-heading"><div><h3>Unemployment by age</h3></div><span id="risk-age-year"></span></div><div id="risk-group-chart" class="chart h-300"></div></figure>
+          <figure class="viz-card"><div class="viz-heading"><div><h3>Unemployment by age</h3></div></div><div id="risk-group-chart" class="chart h-300"></div><span id="risk-age-year"></span></figure>
+        <figure class="viz-card"><div class="viz-heading"><h3>Unemployment by age and year</h3></div><div id="risk-heatmap" class="chart"></div></figure>
         </div>
       </section>
       <section class="chapter-panel" id="chapter-equity" data-panel="equity" role="tabpanel" aria-labelledby="tab-equity" hidden>
-        <header class="chapter-heading"><span>03 · GENDER &amp; PAY</span><h2>Who Benefits from the Market</h2><p>Participation, representation and pay reveal different dimensions of inequality.</p></header>
+        <header class="chapter-heading"><span>01 · GENDER &amp; PAY</span><h2>Who Benefits from the Market</h2><p>Participation, representation and pay reveal different dimensions of inequality.</p></header>
         <div class="dashboard-grid two-columns">
-          <figure class="viz-card"><div class="viz-heading"><div><h3>Median pay over time</h3></div><label class="year-slider">Year <input type="range" id="gender-employment-year" aria-controls="pay-trend-chart gender-employment-chart pay-gap-chart" min="2008" max="2025" step="1" value="2025"><output for="gender-employment-year">2025</output></label></div><div id="pay-trend-chart" class="chart h-300 pay-trend-chart"></div></figure>
-          <figure class="viz-card primary-viz"><div class="viz-heading"><div><h3>Median monthly pay by industry</h3></div><span id="industry-pay-year-label"></span></div><div id="pay-gap-chart" class="chart h-300"></div></figure>
+          <figure class="viz-card"><div class="viz-heading"><div><h3>Median pay over time</h3></div><label class="year-slider">Year <input type="range" id="gender-employment-year" aria-controls="pay-trend-chart gender-employment-chart pay-gap-chart representation-chart" min="2008" max="2025" step="1" value="2025"><output for="gender-employment-year">2025</output></label></div><div id="pay-trend-chart" class="chart h-300 pay-trend-chart"></div><span class="equity-year" id="pay-trend-year"></span></figure>
+          <figure class="viz-card primary-viz"><div class="viz-heading"><div><h3>Median monthly pay by industry</h3></div></div><div id="pay-gap-chart" class="chart h-300"></div><span class="equity-year" id="industry-pay-year-label"></span></figure>
           <figure class="viz-card">
             <div class="viz-heading participation-heading"><div><h3>Participation by age and sex</h3></div>
-            <div class="participation-controls"><label>View <select id="participation-mode"><option value="linked">Selected year</option><option value="compare">Three-year comparison</option></select></label></div></div>
-            <div class="participation-toolbar"><ul id="participation-legend" class="participation-legend" aria-label="Years"></ul><div class="participation-playback"><button type="button" id="participation-play">Play</button><span class="participation-play-range">2008–2025</span><span id="participation-selected-year" aria-live="polite"></span></div></div>
+            <div class="participation-controls"><label>View <select id="participation-mode"><option value="linked">Selected year</option><option value="compare">Three-year comparison</option></select></label><button type="button" id="participation-play">Play</button></div></div>
+            <div class="participation-toolbar"><ul id="participation-legend" class="participation-legend" aria-label="Years"></ul></div>
             <div id="participation-chart" class="chart" role="img" aria-label="Labour-force participation rates for men and women by age group in 1985, 2005 and 2025"></div>
-          </figure>
-          <figure class="viz-card"><div class="viz-heading"><div><h3>Employment by industry and sex</h3></div></div><div id="gender-employment-chart" class="chart h-280"></div></figure>
+          <span class="equity-year" id="participation-selected-year"></span></figure>
+          <figure class="viz-card"><div class="viz-heading"><div><h3>Employment by industry and sex</h3></div></div><div class="employment-sex-legend"><span>Male</span><span>Female</span></div><div id="gender-employment-chart" class="chart h-280"></div><span class="equity-year" id="gender-employment-year-label"></span></figure>
+          <figure class="viz-card"><div class="viz-heading"><h3>Women’s employment share and pay gap</h3></div><div class="pay-gap-legend"><span>Monthly pay gap (HKD)</span><i aria-hidden="true"></i><div><span>−1.5k</span><span>0k</span><span>15k+</span></div></div><div class="chart" id="representation-chart"></div><span class="equity-year" id="representation-chart-label"></span></figure>
         </div>
-        <div class="decision-strip compact-decision"><p>Turn market evidence into a personal shortlist.</p><a href="fit.html">Find Your Fit →</a></div>
+
       </section>
     </section>
   </main>
+  <script>
+    // Present the destination shell while the chart data is loading.
+    if (!document.body.classList.contains("is-landing")) {
+      const chapter = location.hash.slice(1);
+      const review = chapter === "markets" || chapter === "equity";
+      const panel = document.getElementById("chapter-" + chapter);
+      panel.hidden = false;
+      panel.classList.add("active");
+      document.querySelectorAll("[data-chapter]").forEach(tab => {
+        const selected = tab.dataset.chapter === chapter;
+        tab.hidden = ["markets", "equity"].includes(tab.dataset.chapter) !== review;
+        tab.classList.toggle("active", selected);
+        tab.setAttribute("aria-selected", String(selected));
+      });
+      document.querySelector(`[data-section="${review ? "review" : "explore"}"]`).classList.add("active");
+    }
+  </script>
   <div id="tooltip" class="tooltip" role="status" aria-live="polite"></div>
-  <script src="i18n.js?v=5" defer></script>
-  <script src="app.js?v=57" defer></script>
+  <script src="scatter-labels.js" defer></script>
+  <script src="i18n.js?v=crisis-recovery" defer></script>
+  <script src="app.js?v=participation-linear-area" defer></script>
+<script src="markets-bridge.js?v=1" defer></script>
 </body>
 </html>
