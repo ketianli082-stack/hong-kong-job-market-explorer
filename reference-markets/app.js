@@ -416,10 +416,11 @@
     const hkTitle = t("香港年龄结构快照","Hong Kong employment by age");
     const hkColors = ["#A994C9","#BF4D76"];
     const hkSets = hkShares.map((values,i)=>lineSet(snapshotYears[i],values.map((value,j)=>
-      [j,value,`${snapshotYears[i]} · ${ages[j]} · ${value.toFixed(2)}%`]),hkColors[i]));
+      [j,value,`${snapshotYears[i]}\n${t(ages[j]+" 岁","Age "+ages[j])} · ${value.toFixed(2)}%`]),hkColors[i]));
     const snapshot = viz("market-hk-snapshot",(width,height)=>c.series(width,hkSets,{
       height:height || 226, x:[0,10], y:[0,16], yTicks:[0,5,10,15], yFormat:value=>value+"%",
       xTicks:span(0,10).filter(i=>width>=420 || i%2===0), xFormat:i=>ages[i], right:25, label:hkTitle,
+      hoverCross:false, action:"marketTrendPoint",
     }));
     const mainlandTitle = t("内地年龄构成趋势","Mainland employment age mix");
     const bands = ["16–24","25–34","35–44","45–54","55–59","60+"];
@@ -1422,7 +1423,8 @@
   function action(e,el) {
     const key=el.dataset.action, value=el.dataset.value;
     if(key==="marketTrendPoint") {
-      showTip(el, e.type==="click" && e.detail ? e : undefined);
+      const pointer = e.type==="click" && e.detail ? e : undefined;
+      showTip(closestSnapshotPoint(el,pointer),pointer);
       return;
     }
     if(key==="selectMarketAge") {
@@ -1576,7 +1578,7 @@
     } else {
       const band=e.target.closest('[data-chart="industry-area"] [data-tip]');
       if(band) showTip(band,e);
-      else if(e.target.closest("#age-trends")) tooltip.hidden=true;
+      else if(e.target.closest("#age-trends, #hk-snapshot")) tooltip.hidden=true;
     }
   });
   main.addEventListener("keydown",e=>{
@@ -1724,6 +1726,18 @@
     tooltip.hidden=false;
     positionTip(x,y);
   }
+  function closestSnapshotPoint(point,event) {
+    if(!event || point.dataset.action!=="marketTrendPoint" || !point.closest("#hk-snapshot")) return point;
+    // At close crossings the top SVG circle can cover the centre of the other.
+    let closest=point, nearest=Infinity;
+    for(const mark of point.closest("svg").querySelectorAll('[data-action="marketTrendPoint"]')) {
+      if(mark.dataset.value!==point.dataset.value) continue;
+      const rect=mark.getBoundingClientRect();
+      const distance=Math.abs(event.clientY-rect.top-rect.height/2);
+      if(distance<nearest) { closest=mark; nearest=distance; }
+    }
+    return closest;
+  }
   function resetCross() {
     main.querySelectorAll(".hover-cross.on").forEach(l=>l.classList.remove("on"));
   }
@@ -1747,7 +1761,7 @@
     if(band){ resetCross(); highlightBand(band); showTip(band,e); return; }
     if(hoverBand) restoreBands();
     const hit=e.target.closest("[data-tip]");
-    if(hit) { resetCross(); showTip(hit,e); } else { tooltip.hidden=true; resetCross(); }
+    if(hit) { resetCross(); showTip(closestSnapshotPoint(hit,e),e); } else { tooltip.hidden=true; resetCross(); }
   });
   main.addEventListener("pointerleave",()=>{ restoreBands(); tooltip.hidden=true; resetCross(); });
   main.addEventListener("focusin",e=>{
