@@ -2,10 +2,9 @@
 
 这是一个基于 Tableau 工作簿数据制作的英文交互式就业市场网站。
 
-- **[打开叶同学最新仪表盘 · 首页 → 开始探索](https://ketianli082-stack.github.io/hong-kong-job-market-explorer/preview/ye/index.html?v=051cd82)** · [查看 page1-ye 分支](https://github.com/ketianli082-stack/hong-kong-job-market-explorer/tree/page1-ye)
-- [团队主站（main 版本）](https://ketianli082-stack.github.io/hong-kong-job-market-explorer/)
+- **[打开团队主站（main）](https://ketianli082-stack.github.io/hong-kong-job-market-explorer/)**
 
-> 网站使用 GitHub Pages 部署。仓库已配置 `.github/workflows/deploy-pages.yml`，提交到 `main` 后自动触发部署。首次使用时需要在 [Settings → Pages](https://github.com/ketianli082-stack/hong-kong-job-market-explorer/settings/pages) 将 Build and deployment 的 Source 设置为 **GitHub Actions**；在首次部署成功前，预览地址可能显示 404。
+> 网站使用 GitHub Pages 部署。仓库已配置 `.github/workflows/deploy-pages.yml`，提交到 `main` 后自动触发部署。首次使用时需要在 [Settings → Pages](https://github.com/ketianli082-stack/hong-kong-job-market-explorer/settings/pages) 将 Build and deployment 的 Source 设置为 **GitHub Actions**；在首次部署成功前，主站地址可能显示 404。
 
 ## 三段式汇报版本
 
@@ -13,7 +12,7 @@
 - **Explore** 从 02 风险与韧性进入 03 就业结构。点击年龄热力图的单元格，可联动按年龄划分的失业率图。
 - **Find Your Fit** 同时查看招聘机会、行业职业空缺桑基图和季度用工走势，再结合收入、工时和月度预算进行选择。
 
-本地运行 `python3 -m http.server 8001` 后打开 [Review](http://localhost:8001/index.html#markets)。上方的叶同学最新版预览随 `page1-ye` 更新。
+本地运行 `python3 -m http.server 8001` 后打开 [Review](http://localhost:8001/index.html#markets)。
 
 ## 分工
 
@@ -29,7 +28,7 @@
 
 ## 叶同学本轮更新（2026-11-18）
 
-修改已从 `page1-ye` 合并至 `main`。本节记录本轮功能更新；在线预览链接会读取 `main` 的代码。
+修改已从 `page1-ye` 合并至 `main`。本节记录本轮功能更新；在线主站从 `main` 发布。
 
 ### Page 01 — Explore
 
