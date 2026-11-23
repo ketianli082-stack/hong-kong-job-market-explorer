@@ -35,7 +35,6 @@
     ...defaultPreferences,
     selected: [],
     focus: null,
-    adjustment: "",
     quarterIndex: 41,
     startYear: 2016,
     expansionYear: 2016,
@@ -91,7 +90,13 @@
       openings: row.vacancies, employment: row.employment
     }));
     const quarters = [...new Set(vacancyHistory.map(row => row.period))].sort();
-    return { demand, occupations, pay, history, vacancyHistory, quarters };
+    const years = [...new Set(pay.map(row => row.year))].sort((a, b) => a - b);
+    const payHoursByYear = new Map(years.map(year => [year, payHoursRows({ demand, pay, vacancyHistory }, year)]));
+    const defaultLimits = (payHoursByYear.get(defaultPreferences.payYear)?.limits ??
+      [...payHoursByYear.values()].find(year => year.limits)?.limits);
+    if (!defaultLimits) throw new Error("No industry pay and hours data available.");
+    const yearLimits = { min: years[0], max: years.at(-1), step: 1 };
+    return { demand, occupations, history, vacancyHistory, quarters, payHoursByYear, defaultLimits, yearLimits };
   }
 
   function list(names) {
@@ -101,91 +106,16 @@
     return `${names.slice(0, -1).join(", ")} and ${names.at(-1)}`;
   }
 
-  function candidate(row) {
-    const outgoings = state.rent + state.living + state.deduct;
-    const surplus = Number.isFinite(row.pay50) ? row.pay50 - outgoings : null;
-    const missing = ![row.pay50, row.hours50, surplus].every(Number.isFinite);
-    const issues = [
-      Number.isFinite(row.pay50) && row.pay50 < state.targetPay ? "Pay below target" : null,
-      Number.isFinite(row.hours50) && row.hours50 > state.maxHours ? "Hours above limit" : null,
-      missing ? "Pay or hours data missing" : null,
-    ].filter(Boolean);
-    return {
-      ...row,
-      surplus,
-      issues,
-      match: !issues.length,
-      missing,
-      demand: fitData.demand.find(item => item.id === row.id),
-    };
-  }
-
-
-  function validYearRows() {
-    return fitData.pay.filter(row => row.year === state.payYear &&
-      Number.isFinite(row.pay50) && Number.isFinite(row.hours50));
-  }
-
-  function matches(row) {
-    return row.pay50 >= state.targetPay - .001 &&
-      row.hours50 <= state.maxHours + .001;
-  }
-  function expensesTotal() { return state.rent + state.living + state.deduct; }
-
-  function fitContext() {
-    const matched = validYearRows().filter(matches).map(candidate)
-      .sort((a, b) => (b.pay50 - a.pay50) || a.name.localeCompare(b.name));
-    const matchedIndustryIds = new Set(matched.map(row => row.id));
-    if (!validYearRows().some(row => row.name === state.focus)) state.focus = null;
-    const feature = validYearRows().map(candidate).find(row => row.name === state.focus) || matched[0] || null;
-    const broad = state.focus && feature ? new Set([feature.id]) : matchedIndustryIds;
-    const chosen = fitData.demand.filter(row => broad.has(row.id));
-    return { chosen, rows: matched, matched, matchedIndustryIds, featured: feature,
-      budget: feature ? feature.pay50 - expensesTotal() : 0 };
-  }
-
-  function reconcileConstraints() {
-    if (validYearRows().some(matches)) return;
-    const rows = validYearRows();
-    if (!rows.length) return;
-    const desired = {pay: state.targetPay, hours: state.maxHours};
-    const nearest = rows.slice().sort((a,b) => {
-      const penalty = row =>
-        Math.max(0, desired.pay - row.pay50) / 10000 +
-        Math.max(0, row.hours50 - desired.hours) / 10;
-      return penalty(a) - penalty(b);
-    })[0];
-    state.targetPay = Math.min(state.targetPay, Math.floor(nearest.pay50 / 100) * 100);
-    state.maxHours = Math.max(state.maxHours, Math.ceil(nearest.hours50 * 10) / 10);
-    state.adjustment = "Criteria adjusted to keep at least one matching industry.";
-  }
-
-  function sliderLimits(key) {
-    const rows = validYearRows();
-    if (key === "targetPay") {
-      const eligible = rows.filter(row => row.hours50 <= state.maxHours + .001);
-      return {
-        min: Math.floor(Math.min(...rows.map(row => row.pay50)) / 100) * 100,
-        max: Math.floor(Math.max(...eligible.map(row => row.pay50)) / 100) * 100,
-        step: 100
-      };
-    }
-    if (key === "maxHours") {
-      const eligible = rows.filter(row => row.pay50 >= state.targetPay - .001);
-      return {
-        min: Math.ceil(Math.min(...eligible.map(row => row.hours50)) * 10) / 10,
-        max: Math.ceil(Math.max(...rows.map(row => row.hours50)) * 10) / 10,
-        step: .1
-      };
-    }
-    const years = [...new Set(fitData.pay.map(row=>row.year))].sort((a,b)=>a-b);
-    return {min:years[0],max:years.at(-1),step:1};
-  }
-
   function formatValue(key, value) {
     if (key === "maxHours") return `${Number(value).toFixed(1)} h`;
     if (key === "payYear") return String(value);
     return money(Number(value));
+  }
+
+  function sliderLimits(key) {
+    if (key === "payYear") return fitData.yearLimits;
+    const limits = fitData.payHoursByYear.get(state.payYear)?.limits ?? fitData.defaultLimits;
+    return limits[key];
   }
 
   function filterSlider(key, heading) {
@@ -219,20 +149,23 @@
     $("#quarter-start").textContent = quarterLabel(fitData.quarters[0]);
     $("#quarter-end").textContent = quarterLabel(fitData.quarters.at(-1));
   }
-  function updateSliderLimits() {
+  function updateControls() {
     ["targetPay", "maxHours", "payYear"].forEach(key => {
-      const lim = sliderLimits(key);
       const slider = document.getElementById("filter-" + key);
       if (!slider) return;
-      slider.min = lim.min; slider.max = lim.max; slider.step = lim.step;
+      const { min, max } = sliderLimits(key);
+      if (+slider.min !== min) {
+        slider.min = min;
+        $('[data-min="' + key + '"]').textContent = formatValue(key, min);
+      }
+      if (+slider.max !== max) {
+        slider.max = max;
+        $('[data-max="' + key + '"]').textContent = formatValue(key, max);
+      }
       slider.value = state[key];
       paintRange(slider);
       const out = document.querySelector('[data-output="' + key + '"]');
-      const min = document.querySelector('[data-min="' + key + '"]');
-      const max = document.querySelector('[data-max="' + key + '"]');
       if (out) out.textContent = formatValue(key, state[key]);
-      if (min) min.textContent = formatValue(key, lim.min);
-      if (max) max.textContent = formatValue(key, lim.max);
     });
     updateQuarterUI();
     ["rent", "living", "deduct"].forEach(key => {
@@ -369,8 +302,7 @@
       + text(axis.right, height - 9, "Vacancy rate", "end");
     const max = Math.max(1, ...values.map(row => row.openings));
     values.slice().sort((a,b) => b.openings - a.openings).forEach(row => {
-      const current = fitContext();
-      const selected = !state.focus || current.featured?.id === row.id;
+      const selected = !selectedVacancyIndustry || selectedVacancyIndustry === row.id;
       const tip = [row.name, "Quarter: " + quarterLabel(row.period),
         "Vacancy rate: " + percent(row.rate * 100),
         "Vacancies: " + number(row.openings),
@@ -378,7 +310,7 @@
       const radius = Math.max(4, Math.sqrt(Math.max(0,row.openings) / max) * 19);
       content += `<circle cx="${axis.x(row.rate*100)}" cy="${axis.y(row.yoy*100)}" r="${radius}" fill="${row.yoy >= 0 ? "#62568C" : "#D7647D"}"
         opacity="${selected ? .86 : .22}" class="ff-bubble" data-tip="${esc(tip)}" data-action="bubble"
-        data-value="${esc(row.id)}" role="button" tabindex="0" aria-label="${esc(tip)}" aria-pressed="${Boolean(state.focus && selected)}"/>`;
+        data-value="${esc(row.id)}" role="button" tabindex="0" aria-label="${esc(tip)}" aria-pressed="${Boolean(selectedVacancyIndustry && selected)}"/>`;
     });
     return svg(w, height, "Vacancy rate and employment year-on-year growth, " + quarterLabel(fitData.quarters[state.quarterIndex]), content);
   }
@@ -476,9 +408,9 @@
     const end = Math.max(...fitData.history.map(row => historyX(row.period)));
     return {
       end,
-      sets: chosen.map((item, index) => ({
+      sets: chosen.map(item => ({
         name: item.name,
-        color: palette[index % palette.length],
+        color: palette[fitData.demand.findIndex(row => row.id === item.id) % palette.length],
         points: fitData.history
           .filter(row => row.id === item.id && historyX(row.period) >= state.startYear)
           .map(row => [historyX(row.period), row.value, `${item.name} · ${row.period} · Index ${number(row.value)}`])
@@ -510,12 +442,11 @@
 
 
   function render() {
-    const context = fitContext();
     $("#fit-app").innerHTML = `
       <div class="ff-topline">
         <div><span class="ff-eyebrow">FIND YOUR FIT · CAREER DECISION DASHBOARD</span>
           <h1>Which options fit you?</h1></div>
-        <div class="ff-match-total"><strong id="match-total">${context.matchedIndustryIds.size}</strong><span>matching industries</span></div>
+        <div class="ff-match-total"><strong id="match-total"></strong><span>matching industries</span></div>
       </div>
       <section class="ff-preferences" aria-label="Your Career Preferences">
         <header class="ff-preferences-head"><h2>Your Career Preferences</h2>
@@ -525,12 +456,11 @@
           ${filterSlider("maxHours", "Maximum weekly hours")}
           ${filterSlider("payYear", "Pay reference year")}
         </div>
-        <span class="ff-sr-only" id="ff-adjustment" role="status" aria-live="polite"></span>
       </section>
       <div class="ff-dashboard-charts">
         <figure class="ff-card ff-chart-scatter">
           <div class="ff-card-head"><h3>Industry income & working hours</h3></div>
-          <p class="ff-footnote"><span>Coordinates: median of the available segment medians.</span> <span id="pay-hours-criteria"></span><br>
+          <p class="ff-footnote"><span>Coordinates: median of the available segment medians.</span> <span>Highlighted: meets both limits.</span><br>
             <span>Bubble size: second-quarter employment · Click to filter vacancy flows</span></p>
           <div id="pay-hours-viz" class="ff-scatter-viz"></div>
           <p class="ff-footnote" id="pay-hours-missing" hidden></p>
@@ -541,7 +471,7 @@
           <div class="ff-card-head"><h3>Where is employment growing?</h3><label>Start year <select id="expansion-year">${[...new Set(fitData.quarters.map(period=>period.slice(0,4)))].map(year=>`<option>${year}</option>`).join("")}</select></label></div>
           <div class="ff-expansion-rows" id="expansion-rows"></div>
           <p class="ff-footnote"><span>Employment change from the first quarter of the selected year</span><br>
-            <span>Highlighted industries have at least one segment whose median pay and hours meet both limits in the selected pay year.</span></p>
+            <span>Highlights use the same pay and hours criteria as the bubble chart.</span></p>
         </figure>
         <figure class="ff-card ff-chart-hiring">
           <div class="ff-card-head"><h3>Industry × Occupation Vacancy Counts</h3></div>
@@ -591,18 +521,22 @@
   }
 
   function updateDashboard() {
-    const ctx = fitContext();
-    const { matched, matchedIndustryIds, chosen } = ctx;
+    const { rows, missing } = fitData.payHoursByYear.get(state.payYear) ??
+      { rows: [], missing: fitData.demand.map(industry => industry.name) };
+    const matched = rows.filter(row => row.pay >= state.targetPay && row.hours <= state.maxHours);
+    const matchedIndustryIds = new Set(matched.map(row => row.id));
 
-    updateSliderLimits();
+    hideTip();
+    updateControls();
     $("#match-total").textContent = String(matchedIndustryIds.size);
-    $("#ff-adjustment").textContent = state.adjustment;
     document.querySelector(".ff-dashboard-charts")?.style.setProperty("--fit-list-min-height", Math.max(370, matched.length * 26 + 98) + "px");
-    drawPayHours(matchedIndustryIds);
+    drawPayHours(rows, missing, matchedIndustryIds);
     highlightExpansion(matchedIndustryIds);
     document.querySelectorAll("[data-year-label]").forEach(element => element.textContent = state.payYear);
-    drawMap(selectedScatterIndustry ? fitData.demand : chosen);
-
+    const chosen = selectedScatterIndustry
+      ? fitData.demand.filter(row => row.id === selectedScatterIndustry)
+      : matched;
+    drawMap(chosen);
   }
 
   let selectedScatterIndustry = null;
@@ -612,14 +546,14 @@
     return (sorted[Math.floor((sorted.length - 1) / 2)] + sorted[Math.floor(sorted.length / 2)]) / 2;
   }
 
-  function drawPayHours(matchingIds) {
-    const container=$("#pay-hours-viz");
-    const yearRows = validYearRows();
-    const employmentByIndustry = new Map(fitData.vacancyHistory
-      .filter(row => row.period === state.payYear + "Q2")
+  function payHoursRows({ demand, pay, vacancyHistory }, year) {
+    const yearRows = pay.filter(row => row.year === year &&
+      Number.isFinite(row.pay50) && Number.isFinite(row.hours50));
+    const employmentByIndustry = new Map(vacancyHistory
+      .filter(row => row.period === year + "Q2")
       .map(row => [row.id, row.employment]));
     const missing = [];
-    const rows = fitData.demand.flatMap((industry, index) => {
+    const rows = demand.flatMap((industry, index) => {
       const segments = yearRows.filter(row => row.id === industry.id);
       const employment = employmentByIndustry.get(industry.id);
       if (!segments.length || !Number.isFinite(employment)) {
@@ -628,21 +562,65 @@
       }
       return [{
         ...industry, employment, segments, color: palette[index % palette.length],
-        pay: median(segments.map(row => row.pay50)),
-        hours: median(segments.map(row => row.hours50)),
+        pay: Math.round(median(segments.map(row => row.pay50))),
+        // Calculate in tenths so a midpoint such as 46.15 rounds to 46.2.
+        hours: Math.round(median(segments.map(row => Math.round(row.hours50 * 10)))) / 10,
       }];
     });
+    // The slider endpoints use the detailed observations for the selected year.
+    const limits = yearRows.length ? {
+      targetPay: {
+        min: Math.floor(Math.min(...yearRows.map(row => row.pay50)) / 100) * 100,
+        max: Math.floor(Math.max(...yearRows.map(row => row.pay50)) / 100) * 100,
+        step: 100,
+      },
+      maxHours: {
+        min: Math.ceil(Math.min(...yearRows.map(row => row.hours50)) * 10) / 10,
+        max: Math.ceil(Math.max(...yearRows.map(row => row.hours50)) * 10) / 10,
+        step: .1,
+      },
+    } : null;
+    return { rows, missing, limits };
+  }
+
+  function drawPayHours(rows, missing, matchingIds) {
+    const container = $("#pay-hours-viz");
     const missingNotice = $("#pay-hours-missing");
     missingNotice.hidden = missing.length === 0;
     missingNotice.textContent = missing.length ? "Data unavailable · " + missing.join(" · ") : "";
-    $("#pay-hours-criteria").textContent = rows.some(row => matchingIds.has(row.id))
-      ? "Highlighted: at least one segment meets both limits."
-      : "No industries meet both limits.";
     if (!rows.length) {
       container.innerHTML = '<p class="ff-empty">No data for this selection.</p>';
       return;
     }
-    const w=Math.max(360,container.clientWidth),h=Math.max(220,container.clientHeight||320);
+    const w = Math.max(360, container.clientWidth);
+    const h = Math.max(220, container.clientHeight || 320);
+    const layoutKey = `${state.payYear}:${w}:${h}:${document.documentElement.lang}`;
+    let plot = container.querySelector("svg");
+    if (plot?.dataset.layoutKey !== layoutKey) {
+      plot = drawPayHoursPlot(container, rows, w, h);
+      plot.dataset.layoutKey = layoutKey;
+    }
+
+    // Preserve the SVG and its label positions when only the filters change.
+    const dots = plot.querySelectorAll("circle");
+    const labels = plot.querySelectorAll(".income-label");
+    rows.forEach(({ id, name, pay, hours, employment, segments }, index) => {
+      const meetsCriteria = matchingIds.has(id);
+      const selected = selectedScatterIndustry === id;
+      const tip = [name, String(state.payYear), "Reference monthly pay: " + money(pay),
+        "Reference weekly hours: " + number(hours), "Q2 employment: " + number(employment),
+        meetsCriteria ? "Meets both limits" : "Outside your limits",
+        "Source segments: " + segments.map(row => row.name).join(" / ")].join(" · ");
+      dots[index].setAttribute("fill-opacity", meetsCriteria ? ".95" : ".2");
+      dots[index].setAttribute("stroke", selected ? "#51436E" : "#fff");
+      dots[index].setAttribute("aria-pressed", String(selected));
+      dots[index].setAttribute("aria-label", tip);
+      dots[index].dataset.tip = tip;
+      labels[index].dataset.tip = tip;
+    });
+  }
+
+  function drawPayHoursPlot(container, rows, w, h) {
     const minPay=Math.floor((Math.min(...rows.map(r=>r.pay))-700)/1000)*1000;
     const maxPay=Math.ceil((Math.max(...rows.map(r=>r.pay))+700)/1000)*1000;
     const minHours=Math.floor((Math.min(...rows.map(r=>r.hours))-3)/5)*5;
@@ -652,23 +630,18 @@
     let content=a.grid;
     ticks(minPay,maxPay,4).forEach(v=>content+=line(a.x(v),a.top,a.x(v),a.bottom));
     const maxEmployment=Math.max(1,...rows.map(r=>r.employment));
-    rows.forEach(({id,name,pay,hours,employment,segments,color})=>{
+    rows.forEach(({id,name,pay,hours,employment,color})=>{
       const cx=a.x(pay),cy=a.y(hours);
       const r=5+Math.sqrt(employment/maxEmployment)*9;
-      const tip = [name, String(state.payYear), "Reference monthly pay: " + money(pay),
-        "Reference weekly hours: " + number(hours), "Q2 employment: " + number(employment),
-        "Source segments: " + segments.map(row => row.name).join(" / ")].join(" · ");
-      const meetsCriteria = matchingIds.has(id);
-      const selected = selectedScatterIndustry === id;
-      const opacity = meetsCriteria ? (selectedScatterIndustry && !selected ? .65 : .95) : .2;
-      content+=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="${color}" fill-opacity="${opacity}" stroke="${selected?"#51436E":"#fff"}" stroke-width="2" data-action="scatterIndustry" data-value="${esc(id)}" data-tip="${esc(tip)}" tabindex="0" role="button" aria-pressed="${selected}" aria-label="${esc(tip)}" style="cursor:pointer"/>`;
-      content+=`<text x="0" y="0" class="income-label" pointer-events="all" style="cursor:pointer" data-action="scatterIndustry" data-value="${esc(id)}" data-tip="${esc(tip)}">${esc(name)}</text>`;
+      content+=`<circle cx="${cx}" cy="${cy}" r="${r}" fill="${color}" stroke-width="2" data-action="scatterIndustry" data-value="${esc(id)}" tabindex="0" role="button" style="cursor:pointer"/>`;
+      content+=`<text x="0" y="0" class="income-label" pointer-events="all" style="cursor:pointer" data-action="scatterIndustry" data-value="${esc(id)}">${esc(name)}</text>`;
     });
     content+=text((a.left+a.right)/2,h-6,"Reference monthly pay (HK$)");
     content+=`<text transform="translate(14,${(a.top+a.bottom)/2}) rotate(-90)" text-anchor="middle">Reference weekly hours</text>`;
     container.innerHTML=svg(w,h,"Industry income & working hours",content);
     const plot=container.querySelector("svg"), labels=plot.querySelectorAll(".income-label");
     labelScatter(plot,Array.from(plot.querySelectorAll("circle"),(dot,i)=>({x:+dot.getAttribute("cx"),y:+dot.getAttribute("cy"),r:+dot.getAttribute("r"),label:labels[i]})),{left:a.left+2,right:w-3,top:2,bottom:a.bottom-2});
+    return plot;
   }
 
   function vacancyFlow(chosen, width, height) {
@@ -717,14 +690,22 @@
     return `<svg viewBox="0 0 ${w} ${h}" role="img" aria-label="Industry to occupation vacancy flows in 2026 Q2">${content}${nodes(left,lx,true)}${nodes(right,rx,false)}</svg>`;
   }
 
-  function drawMap(chosen) {
+  function drawMap(industries) {
     const container = $("#map-viz");
-    if (!container) return;
-    const industries=chosen.filter(row=>!selectedScatterIndustry||row.id===selectedScatterIndustry);
-    const focused=selectedVacancyIndustry?industries.filter(row=>row.id===selectedVacancyIndustry):industries;
+    const map = $("#opportunities-viz");
+    const history = $("#industry-history");
+    if (!industries.length) {
+      const empty = '<p class="ff-empty">No industries meet both limits.</p>';
+      container.innerHTML = empty;
+      map.innerHTML = empty;
+      history.innerHTML = empty;
+      return;
+    }
+    const focused = selectedVacancyIndustry
+      ? industries.filter(row => row.id === selectedVacancyIndustry)
+      : industries;
     container.innerHTML=vacancyFlow(focused, container.clientWidth, container.clientHeight);
-    const map=$("#opportunities-viz"),history=$("#industry-history");
-    map.innerHTML=industries.length ? heatTable(occupationOrder, industries) : '<p class="ff-empty">No matching vacancies.</p>';
+    map.innerHTML = heatTable(occupationOrder, industries);
     const { sets, end } = historySets(focused);
     const indices = sets.flatMap(set => set.points.map(point => point[1])).filter(Number.isFinite);
     const lower = Math.floor((Math.min(100, ...indices) - 2) / 5) * 5;
@@ -775,8 +756,11 @@
     if (!element?.dataset.tip) return;
     tooltip.textContent = element.dataset.tip.replace(/\s*·\s*/g, "\n");
     tooltip.classList.add("visible");
-    tooltip.style.left = Math.max(8, Math.min((event?.clientX ?? 0) + 12, innerWidth - tooltip.offsetWidth - 8)) + "px";
-    tooltip.style.top = Math.max(8, Math.min((event?.clientY ?? 0) + 12, innerHeight - tooltip.offsetHeight - 8)) + "px";
+    const anchor = event ?? element.getBoundingClientRect();
+    const x = event ? anchor.clientX : anchor.right;
+    const y = event ? anchor.clientY : anchor.top;
+    tooltip.style.left = Math.max(8, Math.min(x + 12, innerWidth - tooltip.offsetWidth - 8)) + "px";
+    tooltip.style.top = Math.max(8, Math.min(y + 12, innerHeight - tooltip.offsetHeight - 8)) + "px";
   }
   function hideTip() { tooltip.classList.remove("visible"); }
   function bindEvents() {
@@ -785,7 +769,7 @@
       if (event.target.id !== "expansion-year") return;
       state.expansionYear = Number(event.target.value);
       drawExpansion();
-      highlightExpansion(fitContext().matchedIndustryIds);
+      updateDashboard();
     });
     app.addEventListener("click", event => {
       const target = event.target.closest("[data-action]");
@@ -805,7 +789,7 @@
       if (action === "reset") {
         selectedScatterIndustry=null; selectedVacancyIndustry=null;
         Object.assign(state, defaultPreferences, {
-          focus: null, rent: 10000, living: 6500, deduct: 2000, adjustment: "", quarterIndex: fitData.quarters.length - 1 });
+          focus: null, rent: 10000, living: 6500, deduct: 2000, quarterIndex: fitData.quarters.length - 1 });
         render(); return;
       }
       if (action === "focusIndustry") {
@@ -813,13 +797,14 @@
         updateDashboard(); return;
       }
       if (action === "vacancyIndustry") {
+        const selector = '#opportunities-viz [data-action="vacancyIndustry"]';
+        const index = event.detail === 0 ? $$(selector).indexOf(target) : -1;
         selectedVacancyIndustry = selectedVacancyIndustry === target.dataset.value ? null : target.dataset.value;
         updateDashboard();
+        if (index >= 0) $$(selector)[index]?.focus({ preventScroll: true });
         return;
       }
       if (action === "bubble") {
-        const match = fitContext().matched.find(row=>row.id===target.dataset.value);
-        if (match) state.focus=match.name;
         selectedScatterIndustry=null;
         selectedVacancyIndustry=target.dataset.value;
         updateDashboard(); return;
@@ -842,11 +827,16 @@
         updateDashboard();
         return;
       }
-      selectedVacancyIndustry=null;
       state[key] = Number(input.value);
-      state.adjustment = "";
-      if (key === "payYear" || ["rent", "living", "deduct"].includes(key)) {
-        if (key !== "payYear") reconcileConstraints();
+      if (key === "payYear") {
+        ["targetPay", "maxHours"].forEach(preference => {
+          const { min, max } = sliderLimits(preference);
+          state[preference] = Math.max(min, Math.min(state[preference], max));
+        });
+      }
+      if (Object.hasOwn(defaultPreferences, key)) {
+        selectedScatterIndustry = null;
+        selectedVacancyIndustry = null;
       }
       updateDashboard();
     });
